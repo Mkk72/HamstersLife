@@ -66,11 +66,11 @@ describe('состав отряда в правилах', () => {
 
     const captured = getPlanet(state, 2);
     expect(captured?.ownerId).toBe(0);
-    // защита успела вырасти до 3000 (1000 стартовых + производство),
-    // 12 000 атакующих → остаётся 9000, пропорционально 4500/4500
-    expect(troopTotal(captured?.troops ?? createTroopStack())).toBe(9000);
-    expect(captured?.troops.swordsman).toBe(4500);
-    expect(captured?.troops.archer).toBe(4500);
+    // фазовый бой: защита успела вырасти до 3000, атакующие потеряли часть
+    // и забрали разницу — состав остаётся пополам
+    expect(troopTotal(captured?.troops ?? createTroopStack())).toBe(9202);
+    expect(captured?.troops.swordsman).toBe(4601);
+    expect(captured?.troops.archer).toBe(4601);
   });
 
   it('подкрепление складывает состав', () => {

@@ -25,6 +25,21 @@ export interface TroopStats {
   readonly range: number;
   readonly trainTicks: number;
   readonly costSeeds: MilliUnits;
+  /** Против кого род войск сильнее (множитель из `combat.strongPermille`). */
+  readonly strongAgainst: readonly TroopKind[];
+  /** Против кого род войск слабее (множитель из `combat.weakPermille`). */
+  readonly weakAgainst: readonly TroopKind[];
+}
+
+/** Настройки фазового боя. */
+export interface CombatStats {
+  readonly strongPermille: number;
+  readonly weakPermille: number;
+  /** Максимальная доля потерь стороны за одну фазу, permille. */
+  readonly phaseLossPermille: number;
+  readonly rangedEfficiencyPermille: number;
+  readonly approachEfficiencyPermille: number;
+  readonly meleeEfficiencyPermille: number;
 }
 
 export interface ClanStats {
@@ -161,6 +176,8 @@ export interface Balance {
   readonly clans: Readonly<Record<ClanId, ClanStats>>;
   /** Сколько заказов обучения можно держать в очереди одной планеты. */
   readonly maxTrainingQueue: number;
+  /** Настройки фазового боя. */
+  readonly combat: CombatStats;
 }
 
 /** Планета в описании карты: данные, а не состояние. */

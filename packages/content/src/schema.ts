@@ -24,6 +24,8 @@ export const boostStatsSchema = z.strictObject({
 
 export const troopRoleSchema = z.enum(['melee', 'ranged', 'siege', 'support']);
 
+export const troopKindSchema = z.enum(['swordsman', 'archer', 'cannon', 'cavalry', 'mage']);
+
 export const troopStatsSchema = z.strictObject({
   name: z.string().min(1),
   role: troopRoleSchema,
@@ -33,6 +35,17 @@ export const troopStatsSchema = z.strictObject({
   range: z.number().int().min(0).max(3),
   trainTicks: z.number().int().positive(),
   costSeeds: z.number().int().nonnegative(),
+  strongAgainst: z.array(troopKindSchema),
+  weakAgainst: z.array(troopKindSchema),
+});
+
+export const combatStatsSchema = z.strictObject({
+  strongPermille: z.number().int().positive(),
+  weakPermille: z.number().int().positive(),
+  phaseLossPermille: z.number().int().positive().max(1000),
+  rangedEfficiencyPermille: z.number().int().positive(),
+  approachEfficiencyPermille: z.number().int().positive(),
+  meleeEfficiencyPermille: z.number().int().positive(),
 });
 
 export const clanStatsSchema = z.strictObject({
@@ -64,6 +77,7 @@ export const balanceSchema = z.strictObject({
   maxRoutesPerPlanet: z.number().int().positive(),
   minRouteFleet: z.number().int().positive(),
   maxTrainingQueue: z.number().int().positive(),
+  combat: combatStatsSchema,
   troops: z.strictObject({
     swordsman: troopStatsSchema,
     archer: troopStatsSchema,

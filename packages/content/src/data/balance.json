@@ -1,22 +1,57 @@
 {
-  "rulesVersion": 3,
-  "contentVersion": 3,
+  "rulesVersion": 4,
+  "contentVersion": 4,
   "planetSizes": {
-    "S": { "capacity": 6000, "productionPerSecond": 600 },
-    "M": { "capacity": 12000, "productionPerSecond": 1000 },
-    "L": { "capacity": 24000, "productionPerSecond": 1600 },
-    "XL": { "capacity": 40000, "productionPerSecond": 2400 }
+    "S": {
+      "capacity": 6000,
+      "productionPerSecond": 600
+    },
+    "M": {
+      "capacity": 12000,
+      "productionPerSecond": 1000
+    },
+    "L": {
+      "capacity": 24000,
+      "productionPerSecond": 1600
+    },
+    "XL": {
+      "capacity": 40000,
+      "productionPerSecond": 2400
+    }
   },
   "flightSpeedUnitsPerSecond": 90,
   "seedsPerPlanetPerSecond": 4000,
   "startingSeeds": 200000,
   "boosts": {
-    "production": { "cost": 150000, "durationTicks": 300, "cooldownTicks": 600, "factorPermille": 2000 },
-    "speed": { "cost": 120000, "durationTicks": 200, "cooldownTicks": 500, "factorPermille": 1600 },
-    "defense": { "cost": 200000, "durationTicks": 240, "cooldownTicks": 600, "factorPermille": 1800 }
+    "production": {
+      "cost": 150000,
+      "durationTicks": 300,
+      "cooldownTicks": 600,
+      "factorPermille": 2000
+    },
+    "speed": {
+      "cost": 120000,
+      "durationTicks": 200,
+      "cooldownTicks": 500,
+      "factorPermille": 1600
+    },
+    "defense": {
+      "cost": 200000,
+      "durationTicks": 240,
+      "cooldownTicks": 600,
+      "factorPermille": 1800
+    }
   },
   "minCaptureGarrison": 1000,
   "maxRoutesPerPlanet": 4,
   "minRouteFleet": 1000,
-  "maxTrainingQueue": 3
+  "maxTrainingQueue": 3,
+  "combat": {
+    "strongPermille": 1400,
+    "weakPermille": 700,
+    "phaseLossPermille": 300,
+    "rangedEfficiencyPermille": 1000,
+    "approachEfficiencyPermille": 800,
+    "meleeEfficiencyPermille": 1200
+  }
 }

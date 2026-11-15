@@ -4,7 +4,8 @@
  * написать систему, вставить её в список и покрыть тестом. Порядок входит в
  * контракт детерминизма, поэтому меняется только с повышением `rulesVersion`.
  */
-import { resolveBattle, resolveCapture } from './combat';
+import { resolveFieldBattle } from './battle';
+import { resolveBattle } from './combat';
 import { clearBoosts } from './boosts';
 import { launchFleet } from './fleets';
 import { defensePermille, productionPerTick, seedsPerTick } from './modifiers';
@@ -293,22 +294,26 @@ function resolveArrivals(
       continue;
     }
 
-    const outcome = resolveCapture({
-      garrison: garrisonOf(planet),
-      defensePermille: defensePermille(planet, context.tick, context.balance),
-      attackers: troopTotal(incumbent.troops),
-      minCaptureGarrison: context.balance.minCaptureGarrison,
-    });
+    const battle = resolveFieldBattle(
+      incumbent.troops,
+      planet.troops,
+      defensePermille(planet, context.tick, context.balance),
+      context.balance,
+    );
 
-    if (outcome.captured) {
+    if (battle.captured) {
       planet.ownerId = incumbent.ownerId;
-      planet.troops = resizeTroops(incumbent.troops, outcome.garrison);
+      const survivors = Math.max(
+        context.balance.minCaptureGarrison,
+        troopTotal(battle.attacker),
+      );
+      planet.troops = resizeTroops(battle.attacker, survivors);
       planet.training.length = 0; // заказы прежнего владельца сгорают
       clearBoosts(planet);
       // Маршруты прежнего владельца сгорают вместе с планетой.
       removeRoutesForPlanet(state, planet.id);
     } else {
-      planet.troops = resizeTroops(planet.troops, outcome.garrison);
+      planet.troops = battle.defender;
     }
   }
 }

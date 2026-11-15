@@ -52,6 +52,15 @@ describe('баланс', () => {
     }
   });
 
+  it('у каждого рода войск есть сильные и слабые стороны', () => {
+    for (const [kind, stats] of Object.entries(BALANCE.troops)) {
+      expect(stats.strongAgainst.length, kind).toBeGreaterThan(0);
+      expect(stats.weakAgainst.length, kind).toBeGreaterThan(0);
+    }
+    expect(BALANCE.combat.strongPermille).toBeGreaterThan(BALANCE.combat.weakPermille);
+    expect(BALANCE.combat.phaseLossPermille).toBeGreaterThan(0);
+  });
+
   it('схема отклоняет лишнее поле у рода войск', () => {
     const broken = {
       ...BALANCE,

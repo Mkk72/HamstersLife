@@ -46,7 +46,8 @@ describe('захват и оборона', () => {
 
     const target = getPlanet(state, 1);
     expect(target?.ownerId).toBe(0);
-    expect(target ? garrisonOf(target) : undefined).toBe(5000);
+    // фазовый бой: потери с обеих сторон, победитель забирает разницу
+    expect(target ? garrisonOf(target) : undefined).toBe(5184);
     // вся продукция уходит в маршрут: гарнизон остаётся нулевым,
     // к 20-му тику маршрут накопил 1000 mH и выпустил отряд;
     // при захвате планеты маршрут на неё сгорает, а отряд остаётся в полёте
@@ -128,8 +129,9 @@ describe('захват и оборона', () => {
 
     const planet = getPlanet(state, 0);
     expect(planet?.ownerId).toBe(0);
-    // гарнизон дорос до 12 000, защита ×1.8 = 21 600; остаток (21 600 − 10 000) / 1.8
-    expect(planet ? garrisonOf(planet) : undefined).toBe(6444);
+    // фазовый бой: защита снижает потери, но не отменяет их;
+    // атакующий отступает, гарнизон остаётся меньше исходного
+    expect(planet ? garrisonOf(planet) : undefined).toBe(2926);
   });
 
   it('без буста тот же штурм заканчивается иначе', () => {
@@ -144,7 +146,7 @@ describe('захват и оборона', () => {
 
     const planet = getPlanet(state, 0);
     expect(planet?.ownerId).toBe(0);
-    expect(planet ? garrisonOf(planet) : undefined).toBe(2000);
+    expect(planet ? garrisonOf(planet) : undefined).toBe(2088);
   });
 
   it('снимает бусты с захваченной планеты', () => {

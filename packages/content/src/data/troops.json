@@ -7,7 +7,13 @@
     "speedPermille": 1000,
     "range": 0,
     "trainTicks": 60,
-    "costSeeds": 20000
+    "costSeeds": 20000,
+    "strongAgainst": [
+      "archer"
+    ],
+    "weakAgainst": [
+      "cannon"
+    ]
   },
   "archer": {
     "name": "Лучник",
@@ -17,7 +23,13 @@
     "speedPermille": 1000,
     "range": 1,
     "trainTicks": 70,
-    "costSeeds": 22000
+    "costSeeds": 22000,
+    "strongAgainst": [
+      "cavalry"
+    ],
+    "weakAgainst": [
+      "cannon"
+    ]
   },
   "cannon": {
     "name": "Пушка",
@@ -27,7 +39,13 @@
     "speedPermille": 600,
     "range": 2,
     "trainTicks": 110,
-    "costSeeds": 35000
+    "costSeeds": 35000,
+    "strongAgainst": [
+      "swordsman"
+    ],
+    "weakAgainst": [
+      "cavalry"
+    ]
   },
   "cavalry": {
     "name": "Конница",
@@ -37,7 +55,14 @@
     "speedPermille": 1600,
     "range": 0,
     "trainTicks": 80,
-    "costSeeds": 26000
+    "costSeeds": 26000,
+    "strongAgainst": [
+      "cannon",
+      "archer"
+    ],
+    "weakAgainst": [
+      "swordsman"
+    ]
   },
   "mage": {
     "name": "Маг-звездочёт",
@@ -47,6 +72,13 @@
     "speedPermille": 1000,
     "range": 2,
     "trainTicks": 120,
-    "costSeeds": 40000
+    "costSeeds": 40000,
+    "strongAgainst": [
+      "swordsman",
+      "archer"
+    ],
+    "weakAgainst": [
+      "cavalry"
+    ]
   }
 }

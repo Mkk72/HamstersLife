@@ -1,8 +1,8 @@
 /**
- * Чистая математика боя и захвата (IDEA.md §3.4, уточнено в §3.4.1).
+ * Чистая математика схватки отрядов в полёте и защиты планеты.
  *
- * Никакого состояния: вход — числа, выход — числа. Здесь живёт единственное
- * место, где решается исход, поэтому его проверяют тесты и тест детерминизма.
+ * Захват планеты считает фазовый бой (`battle.ts`); здесь остаются формулы,
+ * которые нужны и бою, и боту: сила защиты и схватка двух отрядов без бонусов.
  */
 import { HAMSTER, PERMILLE, mulPermille } from './units';
 
@@ -34,44 +34,8 @@ export function resolveBattle(attacker: number, defender: number): BattleResult 
   return { winner: 'none', remaining: 0 };
 }
 
-export interface CaptureInput {
-  /** Текущий гарнизон планеты. */
-  readonly garrison: number;
-  /** Защита планеты в permille с учётом бустов и бонусов. */
-  readonly defensePermille: number;
-  /** Прибывшие войска атакующего. */
-  readonly attackers: number;
-  /** Минимальный гарнизон после захвата. */
-  readonly minCaptureGarrison: number;
-}
-
-export type CaptureOutcome =
-  | { readonly captured: true; readonly garrison: number }
-  | { readonly captured: false; readonly garrison: number };
-
-/**
- * Захват по численности.
- *
- *   сила_защиты = floor(гарнизон × защита / 1000)
- *   атакующие > сила_защиты → захват, гарнизон = max(минимум, атакующие − сила_защиты)
- *   иначе                   → гарнизон = floor((сила_защиты − атакующие) × 1000 / защита)
- *
- * Во второй ветви допускается гарнизон 0: планета удержана, но её защищать
- * некому — следующий отряд заберёт её без боя. Это осознанное правило.
- */
-export function resolveCapture(input: CaptureInput): CaptureOutcome {
-  const defense = defenseForce(input.garrison, input.defensePermille);
-  if (input.attackers > defense) {
-    const survivors = input.attackers - defense;
-    return {
-      captured: true,
-      garrison: Math.max(input.minCaptureGarrison, survivors),
-    };
-  }
-  const rest = defense - input.attackers;
-  const garrison = Math.floor((rest * PERMILLE) / input.defensePermille);
-  return { captured: false, garrison: Math.max(0, garrison) };
-}
-
 /** Половина хомяка — порог, ниже которого отряд не формируется. */
 export const MIN_FLEET_SIZE = HAMSTER;
+
+/** Пригодится снаружи: 1000 permille = 1.0. */
+export const FULL_DEFENSE = PERMILLE;
