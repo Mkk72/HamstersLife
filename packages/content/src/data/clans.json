@@ -1,7 +1,7 @@
 {
   "goldenCheeks": {
     "name": "Золотые Щёки",
-    "productionPermille": 1100,
+    "productionPermille": 1050,
     "defensePermille": 1000,
     "speedPermille": 1000,
     "spellCostPermille": 1000
@@ -10,20 +10,20 @@
     "name": "Джунгарские Звёздные",
     "productionPermille": 1000,
     "defensePermille": 1000,
-    "speedPermille": 1100,
+    "speedPermille": 1050,
     "spellCostPermille": 1000
   },
   "syrian": {
     "name": "Сирийская Броня",
     "productionPermille": 1000,
-    "defensePermille": 1100,
+    "defensePermille": 1050,
     "speedPermille": 1000,
     "spellCostPermille": 1000
   },
   "darkRoborowski": {
     "name": "Тёмный Роборовски",
     "productionPermille": 1000,
-    "defensePermille": 1000,
+    "defensePermille": 1030,
     "speedPermille": 1000,
     "spellCostPermille": 900
   }

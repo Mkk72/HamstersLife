@@ -12,3 +12,6 @@ nodeLinker: hoisted
 # node_modules после изменения состава зависимостей («Aborted removal of modules
 # directory due to no TTY»).
 confirmModulesPurge: false
+
+allowBuilds:
+  esbuild: set this to true or false

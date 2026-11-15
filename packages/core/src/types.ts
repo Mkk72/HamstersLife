@@ -119,8 +119,8 @@ export interface Route {
 
 export interface PlayerState {
   readonly id: PlayerId;
-  /** Клан игрока: небольшие бонусы, чтобы PvP оставался честным. */
-  readonly clanId: ClanId;
+  /** Клан игрока. Назначается до старта (место за столом или выбор в меню). */
+  clanId: ClanId;
   seeds: MilliUnits;
   alive: boolean;
   /** До какого тика буст недоступен (перезарядка). */

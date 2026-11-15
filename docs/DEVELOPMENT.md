@@ -73,9 +73,20 @@ pnpm verify         # типы + границы пакетов + тесты + с
 pnpm typecheck      # только типы
 pnpm test           # тесты всех пакетов
 pnpm boundaries     # проверка границ пакетов (core/levelgen/ai без DOM, Node, Pixi)
-pnpm lint           # ESLint
+pnpm lint           # ESLint (служебные JS)
 pnpm dev:web        # клиент в браузере (после появления apps/client)
+pnpm balance:sim    # симулятор баланса: кланы и матрица составов
 ```
+
+Симулятор баланса принимает аргументы через переменную окружения:
+
+```powershell
+$env:BALANCE_ARGS='--matches 40 --only comps'; pnpm balance:sim
+$env:BALANCE_ARGS='--matches 40 --only clans'; pnpm balance:sim
+Remove-Item Env:BALANCE_ARGS
+```
+
+Он запускается через Vitest, а не отдельным CLI-раннером: так не нужны `tsx`/`esbuild` с платформенными бинарниками, а TypeScript и импорты пакетов разрешает тот же Vite, что и в клиенте.
 
 Запуск только одного пакета:
 

@@ -1,6 +1,6 @@
 {
   "rulesVersion": 5,
-  "contentVersion": 4,
+  "contentVersion": 5,
   "planetSizes": {
     "S": {
       "capacity": 6000,
@@ -47,11 +47,11 @@
   "minRouteFleet": 1000,
   "maxTrainingQueue": 3,
   "combat": {
-    "strongPermille": 1400,
-    "weakPermille": 700,
+    "strongPermille": 1600,
+    "weakPermille": 600,
     "phaseLossPermille": 300,
-    "rangedEfficiencyPermille": 1000,
+    "rangedEfficiencyPermille": 1500,
     "approachEfficiencyPermille": 800,
-    "meleeEfficiencyPermille": 1200
+    "meleeEfficiencyPermille": 1000
   }
 }

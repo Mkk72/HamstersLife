@@ -2,8 +2,8 @@
   "swordsman": {
     "name": "Мечник",
     "role": "melee",
-    "attack": 1000,
-    "defense": 1400,
+    "attack": 950,
+    "defense": 1300,
     "speedPermille": 1000,
     "range": 0,
     "trainTicks": 60,
@@ -18,8 +18,8 @@
   "archer": {
     "name": "Лучник",
     "role": "ranged",
-    "attack": 900,
-    "defense": 700,
+    "attack": 1000,
+    "defense": 650,
     "speedPermille": 1000,
     "range": 1,
     "trainTicks": 70,
@@ -34,12 +34,12 @@
   "cannon": {
     "name": "Пушка",
     "role": "siege",
-    "attack": 1600,
-    "defense": 500,
+    "attack": 2000,
+    "defense": 800,
     "speedPermille": 600,
     "range": 2,
     "trainTicks": 110,
-    "costSeeds": 35000,
+    "costSeeds": 28000,
     "strongAgainst": [
       "swordsman"
     ],
@@ -50,8 +50,8 @@
   "cavalry": {
     "name": "Конница",
     "role": "melee",
-    "attack": 1300,
-    "defense": 900,
+    "attack": 1400,
+    "defense": 850,
     "speedPermille": 1600,
     "range": 0,
     "trainTicks": 80,
@@ -67,12 +67,12 @@
   "mage": {
     "name": "Маг-звездочёт",
     "role": "support",
-    "attack": 700,
-    "defense": 600,
+    "attack": 1500,
+    "defense": 650,
     "speedPermille": 1000,
     "range": 2,
     "trainTicks": 120,
-    "costSeeds": 40000,
+    "costSeeds": 30000,
     "strongAgainst": [
       "swordsman",
       "archer"
