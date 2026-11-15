@@ -64,11 +64,34 @@ export class SimpleBot implements Bot {
     const commands: Command[] = [];
     const cleanup = this.#decideCleanup(state, playerId);
     if (cleanup) commands.push(cleanup);
+    const training = this.#decideTraining(state, playerId);
+    if (training) commands.push(training);
     const boost = this.#decideBoost(state, playerId);
     if (boost) commands.push(boost);
     const attack = this.#decideAttack(state, playerId);
     if (attack) commands.push(attack);
     return commands;
+  }
+
+  /**
+   * Обучает пару мечников, если очередь свободна и после этого остаётся на
+   * «Колесо»: бот не должен съедать семечки, оставляя себя без бустов.
+   */
+  #decideTraining(state: Readonly<GameState>, playerId: PlayerId): Command | null {
+    const player = state.players[playerId];
+    if (!player) return null;
+    const own = state.planets.filter(
+      (planet) => planet.ownerId === playerId && planet.training.length === 0,
+    );
+    const planet = own[0];
+    if (!planet) return null;
+
+    const stats = this.#balance.troops.swordsman;
+    const amount = 2;
+    const cost = amount * stats.costSeeds;
+    if (player.seeds < cost + this.#balance.boosts.production.cost) return null;
+
+    return { type: 'TrainTroops', playerId, planetId: planet.id, kind: 'swordsman', amount };
   }
 
   /** Маршрут, который кормит уже свою планету, только мешает — отрезаем. */

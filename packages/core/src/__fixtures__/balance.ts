@@ -24,6 +24,7 @@ export const testBalance: Balance = {
   minCaptureGarrison: 1000,
   maxRoutesPerPlanet: 4,
   minRouteFleet: 1000,
+  maxTrainingQueue: 3,
   troops: {
     swordsman: { name: 'Мечник', role: 'melee', attack: 1000, defense: 1400, speedPermille: 1000, range: 0, trainTicks: 60, costSeeds: 20_000 },
     archer: { name: 'Лучник', role: 'ranged', attack: 900, defense: 700, speedPermille: 1000, range: 1, trainTicks: 70, costSeeds: 22_000 },

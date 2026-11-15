@@ -53,6 +53,7 @@ class TestView implements GameView {
   selects = 0;
   outcomes: boolean[] = [];
   cuts = 0;
+  trains = 0;
 
   render(view: BoardView): void {
     this.last = view;
@@ -88,6 +89,10 @@ class TestView implements GameView {
 
   playCut(): void {
     this.cuts += 1;
+  }
+
+  playTrain(): void {
+    this.trains += 1;
   }
 }
 
@@ -225,6 +230,36 @@ describe('маршруты и скорость', () => {
     presenter.setSpeed(0.4);
     expect(presenter.speed).toBe(0.4);
     expect(source.speed).toBe(0.4);
+  });
+});
+
+describe('обучение войск', () => {
+  it('кнопки обучения активны только при выбранной своей планете', () => {
+    const { presenter, view } = setup();
+    expect(view.last?.hud.training.every((troop) => !troop.ready)).toBe(true);
+
+    presenter.pointerDown(0);
+    const training = view.last?.hud.training ?? [];
+    expect(training).toHaveLength(5);
+    expect(training.every((troop) => troop.ready)).toBe(true);
+    expect(training.map((troop) => troop.kind)).toContain('cavalry');
+  });
+
+  it('заказывает обучение и просит звук', () => {
+    const { presenter, view, source } = setup();
+    presenter.pointerDown(0);
+
+    const result = presenter.train('cavalry', 2);
+
+    expect(result?.ok).toBe(true);
+    expect(view.trains).toBe(1);
+    expect(source.sim.state.planets[0]?.training).toHaveLength(1);
+    expect(source.sim.state.planets[0]?.training[0]?.kind).toBe('cavalry');
+  });
+
+  it('без выбора не заказывает обучение', () => {
+    const { presenter } = setup();
+    expect(presenter.train('swordsman')).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@
  * Модель представления: то, что вид получает на отрисовку. Здесь нет ни Pixi,
  * ни DOM — только числа и строки, поэтому презентер и его тесты живут без окна.
  */
-import type { BoostKind, MilliUnits, PlanetId, PlanetSize, PlayerId } from '@hamsters/core';
+import type { BoostKind, MilliUnits, PlanetId, PlanetSize, PlayerId, TroopKind } from '@hamsters/core';
 
 export type QualityLevel = 'low' | 'medium' | 'high';
 
@@ -69,6 +69,15 @@ export interface BoostButtonView {
   readonly planetId: PlanetId | null;
 }
 
+/** Кнопка обучения в казарме: цена за одного хомяка. */
+export interface TrainingButtonView {
+  readonly kind: TroopKind;
+  readonly name: string;
+  readonly cost: MilliUnits;
+  readonly affordable: boolean;
+  readonly ready: boolean;
+}
+
 export interface OutcomeView {
   readonly finished: boolean;
   readonly winnerId: PlayerId | null;
@@ -81,6 +90,7 @@ export interface HudView {
   readonly enemy: number;
   readonly neutral: number;
   readonly boosts: readonly BoostButtonView[];
+  readonly training: readonly TrainingButtonView[];
   readonly outcome: OutcomeView | null;
   readonly hint: string | null;
   /** Обнаружена правка защищённых значений в клиенте. */
@@ -112,4 +122,6 @@ export interface GameView {
   playOutcome(won: boolean): void;
   /** Маршрут отрезан. */
   playCut(): void;
+  /** Заказ на обучение принят. */
+  playTrain(): void;
 }

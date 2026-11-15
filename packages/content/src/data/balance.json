@@ -17,5 +17,6 @@
   },
   "minCaptureGarrison": 1000,
   "maxRoutesPerPlanet": 4,
-  "minRouteFleet": 1000
+  "minRouteFleet": 1000,
+  "maxTrainingQueue": 3
 }

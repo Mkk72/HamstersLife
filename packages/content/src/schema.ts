@@ -63,6 +63,7 @@ export const balanceSchema = z.strictObject({
   minCaptureGarrison: z.number().int().positive(),
   maxRoutesPerPlanet: z.number().int().positive(),
   minRouteFleet: z.number().int().positive(),
+  maxTrainingQueue: z.number().int().positive(),
   troops: z.strictObject({
     swordsman: troopStatsSchema,
     archer: troopStatsSchema,

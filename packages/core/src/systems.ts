@@ -12,7 +12,7 @@ import { garrisonOf, hasForces } from './state';
 import { createTroopStack, mergeTroops, resizeTroops, subtractTroops, troopTotal } from './troops';
 import type { Balance, Fleet, GameState, PlanetId, PlayerId, Route, TroopStack } from './types';
 import { NEUTRAL_OWNER } from './types';
-import { PERMILLE, mulPermille } from './units';
+import { PERMILLE, mulPermille, HAMSTER } from './units';
 
 export interface TickContext {
   readonly tick: number;
@@ -30,6 +30,35 @@ function addBaseTroops(planet: { troops: TroopStack }, amount: number): void {
   if (amount <= 0) return;
   planet.troops.swordsman += amount;
 }
+
+/**
+ * 0. Обучение в казармах: первый заказ очереди тренирует одного хомяка за
+ * `trainTicks` тиков. Если гарнизон заполнил предел, обучение ждёт: сначала
+ * освободите место (излишек сам уходит по маршрутам).
+ */
+export const trainingSystem: TickSystem = (state, context) => {
+  for (const planet of state.planets) {
+    const order = planet.training[0];
+    if (!order) continue;
+    const capacity = context.balance.planetSizes[planet.size].capacity;
+    if (garrisonOf(planet) >= capacity) continue;
+
+    const stats = context.balance.troops[order.kind];
+    if (!stats) {
+      planet.training.shift();
+      continue;
+    }
+
+    order.progressTicks += 1;
+    if (order.progressTicks < stats.trainTicks) continue;
+
+    order.progressTicks = 0;
+    const batch = Math.min(HAMSTER, order.remaining);
+    planet.troops[order.kind] += batch;
+    order.remaining -= batch;
+    if (order.remaining <= 0) planet.training.shift();
+  }
+};
 
 /**
  * 1. Рост планет и постоянные маршруты.
@@ -186,6 +215,7 @@ export const eliminationSystem: TickSystem = (state) => {
 
 /** Канонический порядок: он же записан в IDEA.md §3.4.1 и ARCHITECTURE.md §10. */
 export const TICK_SYSTEMS: readonly TickSystem[] = [
+  trainingSystem,
   productionSystem,
   seedsSystem,
   fleetsSystem,
@@ -273,6 +303,7 @@ function resolveArrivals(
     if (outcome.captured) {
       planet.ownerId = incumbent.ownerId;
       planet.troops = resizeTroops(incumbent.troops, outcome.garrison);
+      planet.training.length = 0; // заказы прежнего владельца сгорают
       clearBoosts(planet);
       // Маршруты прежнего владельца сгорают вместе с планетой.
       removeRoutesForPlanet(state, planet.id);

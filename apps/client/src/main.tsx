@@ -1,7 +1,7 @@
 import { CONTENT, getMap } from '@hamsters/content';
 import { SimpleBot } from '@hamsters/ai';
 import { Simulation, createTroopStack } from '@hamsters/core';
-import type { BoostKind, MapDefinition, Ratio } from '@hamsters/core';
+import type { BoostKind, MapDefinition, Ratio, TroopKind } from '@hamsters/core';
 import { generateDuelMap } from '@hamsters/levelgen';
 import { Application } from 'pixi.js';
 import { createSignal } from 'solid-js';
@@ -193,6 +193,7 @@ render(
         presenter?.setRatio(value);
       }}
       onBoost={(kind: BoostKind) => presenter?.applyBoost(kind)}
+      onTrain={(kind: TroopKind) => presenter?.train(kind)}
       onQuality={(value) => {
         setQuality(value);
         presenter?.setQuality(value);

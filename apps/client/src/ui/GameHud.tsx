@@ -1,5 +1,5 @@
 import { formatMilli } from '@hamsters/core';
-import type { BoostKind, Ratio } from '@hamsters/core';
+import type { BoostKind, Ratio, TroopKind } from '@hamsters/core';
 import { For, Show } from 'solid-js';
 import type { BoardView, HudView, QualityLevel } from '../presenter/viewModel';
 import { BoostIcon } from './BoostIcon';
@@ -28,6 +28,15 @@ const BOOST_LABEL: Readonly<Record<BoostKind, string>> = {
   defense: 'Скорлупа',
 };
 
+/** Короткие подписи родов войск для панели обучения. */
+const TROOP_SHORT: Readonly<Record<TroopKind, string>> = {
+  swordsman: 'Меч',
+  archer: 'Лук',
+  cannon: 'Пуш',
+  cavalry: 'Кон',
+  mage: 'Маг',
+};
+
 export interface GameHudProps {
   readonly board: () => BoardView | null;
   readonly ratio: () => Ratio;
@@ -38,6 +47,7 @@ export interface GameHudProps {
   readonly speed: () => number;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
+  readonly onTrain: (kind: TroopKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
   readonly onSpeed: (speed: number) => void;
@@ -140,7 +150,25 @@ export function GameHud(props: GameHudProps) {
       </div>
 
       <div class="hud hud--bottom">
-        <div class="boosts">
+        <div class="bottom-left">
+          <div class="training" role="group" aria-label="Обучение войск">
+            <For each={hud()?.training ?? []}>
+              {(troop) => (
+                <button
+                  class="train"
+                  classList={{ 'train--disabled': !troop.ready }}
+                  type="button"
+                  title={`${troop.name} — ${formatMilli(troop.cost, 0)} семечек за одного`}
+                  onClick={() => props.onTrain(troop.kind)}
+                >
+                  <span class="train__name">{TROOP_SHORT[troop.kind]}</span>
+                  <span class="train__cost">{formatMilli(troop.cost, 0)}</span>
+                </button>
+              )}
+            </For>
+          </div>
+
+          <div class="boosts">
           <For each={hud()?.boosts ?? []}>
             {(boost) => (
               <button
@@ -165,6 +193,7 @@ export function GameHud(props: GameHudProps) {
               </button>
             )}
           </For>
+          </div>
         </div>
 
         <div class="ratios" role="group" aria-label="Доля отправки">

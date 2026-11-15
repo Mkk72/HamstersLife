@@ -76,6 +76,28 @@ describe('SimpleBot («Боец»)', () => {
     expect(commands.some((command) => command.type === 'SendFleet')).toBe(false);
   });
 
+  it('ставит обучение, когда есть семечки и свободная очередь', () => {
+    const sim = arena();
+    const bot = new SimpleBot(BALANCE);
+    const training = bot.decide(sim.state, 0).find((command) => command.type === 'TrainTroops');
+
+    expect(training?.type).toBe('TrainTroops');
+    if (training?.type !== 'TrainTroops') return;
+    expect(training.kind).toBe('swordsman');
+    expect(training.amount).toBeGreaterThan(0);
+  });
+
+  it('не учит, если семечек хватает только на буст', () => {
+    const sim = arena();
+    const player = sim.state.players[0];
+    if (!player) throw new Error('нет игрока');
+    player.seeds = BALANCE.troops.swordsman.costSeeds * 2;
+
+    const bot = new SimpleBot(BALANCE);
+    const commands = bot.decide(sim.state, 0);
+    expect(commands.some((command) => command.type === 'TrainTroops')).toBe(false);
+  });
+
   it('молчит, если игрок выбыл', () => {
     const sim = arena();
     const player = sim.state.players[0];

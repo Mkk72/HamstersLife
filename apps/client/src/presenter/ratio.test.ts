@@ -36,6 +36,7 @@ class SilentView implements GameView {
   playSelect(): void {}
   playOutcome(_won: boolean): void {}
   playCut(): void {}
+  playTrain(): void {}
 }
 
 describe('выбор доли', () => {

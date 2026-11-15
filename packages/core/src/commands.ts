@@ -11,9 +11,10 @@ import { MIN_FLEET_SIZE } from './combat';
 import { setBoost } from './boosts';
 import { launchFleet } from './fleets';
 import { garrisonOf, getPlanet, getPlayer } from './state';
-import { createTroopStack, resizeTroops, subtractTroops } from './troops';
+import { createTroopStack, resizeTroops, subtractTroops, TROOP_KINDS } from './troops';
 import type { Balance, Command, CommandResult, GameState, Planet, Route } from './types';
 import { BOOST_KINDS } from './types';
+import { HAMSTER } from './units';
 
 const ALLOWED_RATIOS: readonly number[] = [25, 50, 75, 100];
 
@@ -25,6 +26,8 @@ export function applyCommand(state: GameState, command: Command, balance: Balanc
       return applyBoost(state, command, balance);
     case 'RemoveRoute':
       return removeRoute(state, command);
+    case 'TrainTroops':
+      return trainTroops(state, command, balance);
   }
 }
 
@@ -113,6 +116,39 @@ function removeRoute(
     return { ok: false, error: 'not-your-route' };
   }
   state.routes.splice(index, 1);
+  return { ok: true };
+}
+
+/** Поставить заказ на обучение: семечки списываются сразу, время — в очереди. */
+function trainTroops(
+  state: GameState,
+  command: Extract<Command, { type: 'TrainTroops' }>,
+  balance: Balance,
+): CommandResult {
+  const player = getPlayer(state, command.playerId);
+  if (!player || !player.alive) return { ok: false, error: 'player-dead' };
+
+  const planet = getPlanet(state, command.planetId);
+  if (!planet) return { ok: false, error: 'unknown-planet' };
+  if (planet.ownerId !== command.playerId) return { ok: false, error: 'not-your-planet' };
+  if (!TROOP_KINDS.includes(command.kind)) return { ok: false, error: 'unknown-troop' };
+  if (!Number.isInteger(command.amount) || command.amount < 1) {
+    return { ok: false, error: 'invalid-amount' };
+  }
+  if (planet.training.length >= balance.maxTrainingQueue) {
+    return { ok: false, error: 'queue-full' };
+  }
+
+  const stats = balance.troops[command.kind];
+  const cost = command.amount * stats.costSeeds;
+  if (player.seeds < cost) return { ok: false, error: 'not-enough-seeds' };
+
+  player.seeds -= cost;
+  planet.training.push({
+    kind: command.kind,
+    remaining: command.amount * HAMSTER,
+    progressTicks: 0,
+  });
   return { ok: true };
 }
 

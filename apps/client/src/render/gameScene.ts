@@ -157,6 +157,10 @@ export class GameScene implements GameView {
   playCut(): void {
     this.#sfx.cut();
   }
+
+  playTrain(): void {
+    this.#sfx.train();
+  }
   /** Планета под экранной точкой — для ввода. */
   hitTest(screenX: number, screenY: number): PlanetId | null {
     const point = this.world.toLocal({ x: screenX, y: screenY });

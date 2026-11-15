@@ -64,6 +64,7 @@ export function createGameState(map: MapDefinition, balance: Balance, seed: numb
       defensePermille: planet.defensePermille ?? PERMILLE,
       ownerId: planet.ownerId,
       troops: createTroopStack({ swordsman: planet.garrisonHamsters * HAMSTER }),
+      training: [],
       boosts: createBoosts(),
     }));
 

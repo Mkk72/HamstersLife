@@ -37,6 +37,12 @@ export function hashState(state: GameState): number {
     for (const kind of TROOP_KINDS) hash = mix(hash, planet.troops[kind]);
     hash = mix(hash, planet.defensePermille);
     for (const kind of BOOST_KINDS) hash = mix(hash, planet.boosts[kind] ?? 0);
+    hash = mix(hash, planet.training.length);
+    for (const order of planet.training) {
+      hash = mix(hash, TROOP_KINDS.indexOf(order.kind));
+      hash = mix(hash, order.remaining);
+      hash = mix(hash, order.progressTicks);
+    }
   }
 
   for (const fleet of state.fleets) {

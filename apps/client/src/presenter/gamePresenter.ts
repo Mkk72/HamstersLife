@@ -7,6 +7,7 @@ import {
   BOOST_KINDS,
   MIN_FLEET_SIZE,
   TICKS_PER_SECOND,
+  TROOP_KINDS,
   boostRemainingTicks,
   distance,
   evaluateOutcome,
@@ -14,8 +15,7 @@ import {
   garrisonOf,
   speedUnitsPerSecond,
   troopTotal,
-} from '@hamsters/core';
-import type {
+} from '@hamsters/core';import type {
   Balance,
   BoostKind,
   CommandResult,
@@ -26,6 +26,7 @@ import type {
   PlayerId,
   Ratio,
   SimSource,
+  TroopKind,
 } from '@hamsters/core';
 import type {
   ArrowView,
@@ -35,6 +36,7 @@ import type {
   HudView,
   PlanetView,
   QualityLevel,
+  TrainingButtonView,
 } from './viewModel';
 import { ProtectedInt } from '../security/protectedInt';
 
@@ -183,6 +185,23 @@ export class GamePresenter {
     const result = this.#sendFleet(target);
     if (result?.ok) this.#view.playSend();
     else if (result) this.#view.playError();
+    this.render();
+    return result;
+  }
+
+  /** Заказ на обучение для первой выбранной планеты. */
+  train(kind: TroopKind, amount = 1): CommandResult | null {
+    const planetId = this.#firstSelected();
+    if (planetId === null) return null;
+    const result = this.#sim.sendCommand({
+      type: 'TrainTroops',
+      playerId: this.#playerId,
+      planetId,
+      kind,
+      amount,
+    });
+    if (result.ok) this.#view.playTrain();
+    else this.#view.playError();
     this.render();
     return result;
   }
@@ -368,6 +387,18 @@ export class GamePresenter {
 
     const outcome = evaluateOutcome(state);
 
+    const selectedPlanet = planetId !== null ? state.planets[planetId] : undefined;
+    const training: TrainingButtonView[] = TROOP_KINDS.map((kind) => {
+      const stats = this.#balance.troops[kind];
+      const affordable = (me?.seeds ?? 0) >= stats.costSeeds;
+      const ready =
+        selectedPlanet !== undefined &&
+        selectedPlanet.ownerId === this.#playerId &&
+        selectedPlanet.training.length < this.#balance.maxTrainingQueue &&
+        affordable;
+      return { kind, name: stats.name, cost: stats.costSeeds, affordable, ready };
+    });
+
     this.#rotateMasks(tick);
     this.#guarded.seeds.set(me?.seeds ?? 0);
     this.#guarded.mine.set(mine);
@@ -383,6 +414,7 @@ export class GamePresenter {
       enemy: this.#guarded.enemy.value,
       neutral: this.#guarded.neutral.value,
       boosts,
+      training,
       outcome: outcome.finished
         ? { finished: true, winnerId: outcome.winnerId, youWon: outcome.winnerId === this.#playerId }
         : null,

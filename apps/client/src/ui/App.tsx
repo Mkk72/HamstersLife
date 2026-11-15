@@ -1,4 +1,4 @@
-import type { BoostKind, Ratio } from '@hamsters/core';
+import type { BoostKind, Ratio, TroopKind } from '@hamsters/core';
 import { Show, createSignal, onCleanup } from 'solid-js';
 import type { Application } from 'pixi.js';
 import type { BoardView, QualityLevel } from '../presenter/viewModel';
@@ -17,6 +17,7 @@ export interface AppProps {
   readonly speed: () => number;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
+  readonly onTrain: (kind: TroopKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
   readonly onSpeed: (speed: number) => void;
@@ -56,6 +57,7 @@ export function App(props: AppProps) {
           speed={props.speed}
           onRatio={props.onRatio}
           onBoost={props.onBoost}
+          onTrain={props.onTrain}
           onQuality={props.onQuality}
           onMap={props.onMap}
           onSpeed={props.onSpeed}

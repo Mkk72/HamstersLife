@@ -53,6 +53,15 @@ export type BoostKind = (typeof BOOST_KINDS)[number];
 /** Тик, начиная с которого буст больше не действует (0 — не действовал). */
 export type Tick = number;
 
+/** Заказ на обучение в очереди планеты. */
+export interface TrainingOrder {
+  readonly kind: TroopKind;
+  /** Сколько ещё милли-единиц нужно обучить. */
+  remaining: MilliUnits;
+  /** Накопленные тики текущего хомяка. */
+  progressTicks: number;
+}
+
 export interface Planet {
   readonly id: PlanetId;
   readonly size: PlanetSize;
@@ -63,6 +72,8 @@ export interface Planet {
   ownerId: PlayerId;
   /** Состав гарнизона по родам войск. */
   troops: TroopStack;
+  /** Очередь обучения: первый заказ тренируется, остальные ждут. */
+  training: TrainingOrder[];
   /** До какого тика действует каждый буст. Новый вид — новая запись. */
   boosts: Record<BoostKind, Tick>;
 }
@@ -148,6 +159,8 @@ export interface Balance {
   readonly troops: Readonly<Record<TroopKind, TroopStats>>;
   /** Бонусы кланов. */
   readonly clans: Readonly<Record<ClanId, ClanStats>>;
+  /** Сколько заказов обучения можно держать в очереди одной планеты. */
+  readonly maxTrainingQueue: number;
 }
 
 /** Планета в описании карты: данные, а не состояние. */
@@ -189,6 +202,14 @@ export type Command =
       readonly type: 'RemoveRoute';
       readonly playerId: PlayerId;
       readonly routeId: RouteId;
+    }
+  | {
+      readonly type: 'TrainTroops';
+      readonly playerId: PlayerId;
+      readonly planetId: PlanetId;
+      readonly kind: TroopKind;
+      /** Сколько хомяков обучить (целое число, минимум 1). */
+      readonly amount: number;
     };
 
 export type CommandErrorCode =
@@ -203,7 +224,10 @@ export type CommandErrorCode =
   | 'cooldown'
   | 'too-many-routes'
   | 'unknown-route'
-  | 'not-your-route';
+  | 'not-your-route'
+  | 'invalid-amount'
+  | 'queue-full'
+  | 'unknown-troop';
 
 export type CommandResult =
   | { readonly ok: true; readonly fleetIds?: readonly FleetId[] }
