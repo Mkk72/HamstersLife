@@ -9,6 +9,7 @@ import { TICK_SYSTEMS } from './systems';
 import type { Balance, GameState, PlayerId } from './types';
 
 export function step(state: GameState, balance: Balance): void {
+  state.events.length = 0;
   state.tick += 1;
   const context = { tick: state.tick, balance };
   for (const system of TICK_SYSTEMS) system(state, context);

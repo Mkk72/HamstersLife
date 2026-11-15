@@ -30,6 +30,7 @@ class SilentView implements GameView {
   render(_view: BoardView): void {}
   setQuality(_level: QualityLevel): void {}
   playCapture(_id: number): void {}
+  playInterception(_x: number, _y: number): void {}
   playBoost(_id: number, _kind: BoostKind): void {}
   playSend(): void {}
   playError(): void {}

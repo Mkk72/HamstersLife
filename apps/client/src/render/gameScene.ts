@@ -132,6 +132,14 @@ export class GameScene implements GameView {
     this.#shakeUntil = this.app.ticker.lastTime + 180;
   }
 
+  playInterception(x: number, y: number): void {
+    // Два цвета — два погибших отряда; вспышка ровно там, где встретились.
+    this.#effectsLayer.burst(x, y, 0xffd166);
+    this.#effectsLayer.burst(x, y, 0xff7b5c);
+    this.#sfx.clash();
+    this.#shakeUntil = Math.max(this.#shakeUntil, this.app.ticker.lastTime + 160);
+  }
+
   playBoost(planetId: PlanetId, _kind: BoostKind): void {
     this.#pulses.push({ planetId, until: this.app.ticker.lastTime + 160 });
     this.#sfx.boost();

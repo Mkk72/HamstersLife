@@ -84,6 +84,7 @@ export function createGameState(map: MapDefinition, balance: Balance, seed: numb
     fleets: [],
     routes: [],
     players,
+    events: [],
     nextFleetId: 1,
     nextRouteId: 1,
   };

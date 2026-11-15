@@ -66,6 +66,7 @@ export class GamePresenter {
   #quality: QualityLevel = 'high';
   #composition: CompositionMode = 'all';
   #speed = 1;
+  #seenClashes = new Set<string>();
   #running = false;
   /** Значения HUD замаскированы: правка картинки извне видна по контрольной сумме. */
   readonly #guarded = {
@@ -265,9 +266,30 @@ export class GamePresenter {
     }
   }
 
+  /** Встреча флотов: вспышка ровно в точке перехвата на отрезке. */
+  #detectInterceptions(state: GameState): void {
+    for (const event of state.events) {
+      if (event.kind !== 'interception') continue;
+      const key = `${event.tick}:${event.fleetIds[0]}:${event.fleetIds[1]}`;
+      if (this.#seenClashes.has(key)) continue;
+      this.#seenClashes.add(key);
+      if (this.#seenClashes.size > 64) this.#seenClashes.clear();
+
+      const from = state.planets[event.fromPlanetId];
+      const to = state.planets[event.toPlanetId];
+      if (!from || !to) continue;
+      const share = event.progressPermille / 1000;
+      this.#view.playInterception(
+        from.x + (to.x - from.x) * share,
+        from.y + (to.y - from.y) * share,
+      );
+    }
+  }
+
   /** Снимок для отладки и тестов: тот же объект, что уходит в вид. */
   buildView(): BoardView {
     const state = this.#sim.getSnapshot();
+    this.#detectInterceptions(state);
     const tick = state.tick;
     return {
       tick,

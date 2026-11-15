@@ -67,6 +67,11 @@ class TestView implements GameView {
     this.captures.push(planetId);
   }
 
+  clashes: { x: number; y: number }[] = [];
+  playInterception(x: number, y: number): void {
+    this.clashes.push({ x, y });
+  }
+
   playBoost(_planetId: PlanetId, kind: BoostKind): void {
     this.boosts.push(kind);
   }
@@ -310,6 +315,43 @@ describe('состав отряда', () => {
     expect(composition?.units.find((unit) => unit.kind === 'swordsman')?.count).toBe(
       planet.troops.swordsman,
     );
+  });
+});
+
+describe('перехват флотов', () => {
+  it('вспышка появляется в точке встречи, а не на планете', () => {
+    const { presenter, source, view } = setup();
+    const sim = source.sim;
+    const home = sim.state.planets.find((planet) => planet.ownerId === 0);
+    const enemy = sim.state.planets.find((planet) => planet.ownerId === 1);
+    if (!home || !enemy) throw new Error('нет стартовых планет');
+
+    sim.applyCommand({
+      type: 'SendFleet',
+      playerId: 0,
+      fromPlanetIds: [home.id],
+      toPlanetId: enemy.id,
+      ratio: 50,
+    });
+    sim.applyCommand({
+      type: 'SendFleet',
+      playerId: 1,
+      fromPlanetIds: [enemy.id],
+      toPlanetId: home.id,
+      ratio: 50,
+    });
+
+    for (let step = 0; step < 200 && sim.state.fleets.length > 0; step += 1) {
+      source.advance(1);
+    }
+    presenter.buildView();
+
+    // маршруты продолжают слать отряды, поэтому вспышек может быть несколько
+    expect(view.clashes.length).toBeGreaterThan(0);
+    const clash = view.clashes[0];
+    expect(clash).toBeDefined();
+    expect(Math.abs((clash?.x ?? 0) - (home.x + enemy.x) / 2)).toBeLessThan(15);
+    expect(Math.abs((clash?.y ?? 0) - (home.y + enemy.y) / 2)).toBeLessThan(15);
   });
 });
 

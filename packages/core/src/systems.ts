@@ -8,6 +8,7 @@ import { resolveFieldBattle } from './battle';
 import { resolveBattle } from './combat';
 import { clearBoosts } from './boosts';
 import { launchFleet } from './fleets';
+import { resolveInterceptions } from './interceptions';
 import { defensePermille, productionPerTick, seedsPerTick } from './modifiers';
 import { garrisonOf, hasForces } from './state';
 import { createTroopStack, mergeTroops, resizeTroops, subtractTroops, troopTotal } from './troops';
@@ -208,9 +209,12 @@ export const seedsSystem: TickSystem = (state, context) => {
   }
 };
 
-/** 3. Флоты летят, прибывшие снимаются с карты и разрешаются. */
+/** 3. Флоты летят, встречаются на одной стрелке и прибывают. */
 export const fleetsSystem: TickSystem = (state, context) => {
   const arrivals = advanceFleets(state, context.tick);
+  // Перехват считаем между движением и прибытием: столкнувшиеся исчезают,
+  // не долетая ни до одной планеты.
+  resolveInterceptions(state, context.tick);
   resolveArrivals(state, arrivals, context);
 };
 

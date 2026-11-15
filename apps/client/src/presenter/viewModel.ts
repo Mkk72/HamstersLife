@@ -137,6 +137,8 @@ export interface GameView {
   render(view: BoardView): void;
   setQuality(level: QualityLevel): void;
   playCapture(planetId: PlanetId): void;
+  /** Два встречных отряда столкнулись: вспышка в точке встречи. */
+  playInterception(x: number, y: number): void;
   playBoost(planetId: PlanetId, kind: BoostKind): void;
   /** Отряд ушёл с планеты — короткий звук и вспышка, без знания правил. */
   playSend(): void;

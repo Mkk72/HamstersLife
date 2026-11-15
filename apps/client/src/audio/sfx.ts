@@ -63,6 +63,12 @@ export class Sfx {
     this.#tone(587, 0.12, 'sine', 0.05, 0.06);
   }
 
+  /** Столкновение двух отрядов: короткий низкий удар. */
+  clash(): void {
+    this.#sweep(900, 120, 0.18, 0.06);
+    this.#tone(110, 0.16, 'sawtooth', 0.04);
+  }
+
   boost(): void {
     this.#sweep(320, 760, 0.22, 0.05);
   }

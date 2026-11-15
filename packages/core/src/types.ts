@@ -129,6 +129,20 @@ export interface PlayerState {
   boostCooldownUntilTick: Record<BoostKind, Tick>;
 }
 
+/** Событие перехвата: два встречных флота исчезли в точке встречи. */
+export interface InterceptionEvent {
+  readonly kind: 'interception';
+  readonly tick: Tick;
+  readonly fromPlanetId: PlanetId;
+  readonly toPlanetId: PlanetId;
+  /** Где по отрезку from→to встретились, в permille (500 = середина). */
+  readonly progressPermille: number;
+  readonly fleetIds: readonly [FleetId, FleetId];
+}
+
+/** События тика — только для вида и звука; в хэш не входят. */
+export type GameEvent = InterceptionEvent;
+
 export interface GameState {
   tick: Tick;
   readonly seed: number;
@@ -137,6 +151,8 @@ export interface GameState {
   readonly fleets: Fleet[];
   readonly routes: Route[];
   readonly players: PlayerState[];
+  /** Живут один тик: очищаются в начале шага. */
+  readonly events: GameEvent[];
   nextFleetId: FleetId;
   nextRouteId: RouteId;
 }

@@ -7,6 +7,7 @@ export * from './combat';
 export * from './battle';
 export * from './flight';
 export * from './fleets';
+export * from './interceptions';
 export * from './modifiers';
 export * from './state';
 export * from './commands';
