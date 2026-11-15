@@ -1,0 +1,21 @@
+{
+  "name": "arena-duel",
+  "width": 1200,
+  "height": 800,
+  "playerCount": 2,
+  "planets": [
+    { "id": 0, "size": "M", "x": 150, "y": 400, "ownerId": 0, "garrisonHamsters": 12 },
+    { "id": 1, "size": "M", "x": 1050, "y": 400, "ownerId": 1, "garrisonHamsters": 12 },
+    { "id": 2, "size": "S", "x": 350, "y": 250, "ownerId": -1, "garrisonHamsters": 4 },
+    { "id": 3, "size": "S", "x": 350, "y": 550, "ownerId": -1, "garrisonHamsters": 4 },
+    { "id": 4, "size": "S", "x": 250, "y": 550, "ownerId": -1, "garrisonHamsters": 4 },
+    { "id": 5, "size": "S", "x": 850, "y": 250, "ownerId": -1, "garrisonHamsters": 4 },
+    { "id": 6, "size": "S", "x": 850, "y": 550, "ownerId": -1, "garrisonHamsters": 4 },
+    { "id": 7, "size": "S", "x": 950, "y": 550, "ownerId": -1, "garrisonHamsters": 4 },
+    { "id": 8, "size": "S", "x": 450, "y": 400, "ownerId": -1, "garrisonHamsters": 6 },
+    { "id": 9, "size": "S", "x": 750, "y": 400, "ownerId": -1, "garrisonHamsters": 6 },
+    { "id": 10, "size": "S", "x": 600, "y": 180, "ownerId": -1, "garrisonHamsters": 5 },
+    { "id": 11, "size": "S", "x": 600, "y": 620, "ownerId": -1, "garrisonHamsters": 5 },
+    { "id": 12, "size": "XL", "x": 600, "y": 400, "ownerId": -1, "garrisonHamsters": 12 }
+  ]
+}

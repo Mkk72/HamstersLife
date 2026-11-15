@@ -92,7 +92,7 @@ export interface MapPlanet {
   readonly y: number;
   readonly ownerId: PlayerId;
   readonly garrisonHamsters: number;
-  readonly defensePermille?: number;
+  readonly defensePermille?: number | undefined;
 }
 
 export interface MapDefinition {

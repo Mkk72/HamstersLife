@@ -8,3 +8,5 @@ export * from './state';
 export * from './commands';
 export * from './tick';
 export * from './hash';
+export * from './ports';
+export * from './simulation';
