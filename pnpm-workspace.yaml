@@ -7,3 +7,8 @@ packages:
 # (tsc не находит платформенный пакет, vitest — std-env). Плоский node_modules
 # решает это и не ослабляет границы пакетов: они держатся на tsconfig и ESLint.
 nodeLinker: hoisted
+
+# Агент работает без терминала: иначе pnpm отказывается пересоздавать
+# node_modules после изменения состава зависимостей («Aborted removal of modules
+# directory due to no TTY»).
+confirmModulesPurge: false

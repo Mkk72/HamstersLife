@@ -11,15 +11,14 @@
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "lint": "eslint .",
+    "lint": "eslint eslint.config.js tools",
     "boundaries": "node tools/check-boundaries.mjs",
-    "verify": "pnpm typecheck && pnpm boundaries && pnpm test && pnpm build",
+    "verify": "pnpm typecheck && pnpm boundaries && pnpm lint && pnpm test && pnpm build",
     "dev:web": "pnpm --filter @hamsters/client dev",
     "preview:web": "pnpm --filter @hamsters/client preview"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@typescript-eslint/parser": "8.72.2",
     "@vitest/coverage-v8": "5.1.0",
     "eslint": "10.15.0",
     "fast-check": "4.10.2",

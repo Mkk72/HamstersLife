@@ -1,37 +1,11 @@
-import tsParser from '@typescript-eslint/parser';
-
-const HEADLESS = [
-  'packages/core/**/*.ts',
-  'packages/levelgen/**/*.ts',
-  'packages/ai/**/*.ts',
-];
-
-const UI_IMPORTS = [
-  'pixi.js',
-  'pixi.js/*',
-  'solid-js',
-  'solid-js/*',
-  'howler',
-  '@hamsters/client',
-  '@hamsters/client/*',
-];
-
-const NODE_IMPORTS = ['node:*', 'fs', 'path', 'os', 'crypto', 'worker_threads'];
-
-const BROWSER_GLOBALS = [
-  'window',
-  'document',
-  'navigator',
-  'location',
-  'localStorage',
-  'sessionStorage',
-  'fetch',
-  'WebSocket',
-  'Worker',
-  'requestAnimationFrame',
-  'performance',
-];
-
+/**
+ * ESLint проверяет служебные JS/MJS-файлы (tools/, конфиг).
+ *
+ * TypeScript-файлы здесь сознательно не линтуются: typescript-eslint 8.72 не
+ * поддерживает TypeScript 7 (нативный компилятор), а границы пакетов в проекте
+ * держатся надёжнее — на компиляции (`lib: ["ES2022"]`, `types: []`) и на
+ * `tools/check-boundaries.mjs`. Решение записано в ARCHITECTURE.md §11.
+ */
 export default [
   {
     ignores: [
@@ -44,50 +18,26 @@ export default [
     ],
   },
   {
-    files: ['**/*.ts', '**/*.tsx'],
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
-      parser: tsParser,
       ecmaVersion: 2022,
       sourceType: 'module',
     },
     rules: {
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      eqeqeq: ['error', 'always'],
       'no-restricted-imports': [
         'error',
         {
           patterns: [
             {
-              group: ['../../apps/*', '../../../apps/*'],
-              message: 'Пакет не может импортировать приложение: зависимость только в одну сторону.',
+              group: ['pixi.js', 'pixi.js/*', 'solid-js', 'solid-js/*'],
+              message: 'Служебные скрипты не должны тянуть рендер и интерфейс.',
             },
           ],
         },
-      ],
-    },
-  },
-  {
-    files: HEADLESS,
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: UI_IMPORTS,
-              message: 'Headless-пакет не импортирует рендер и интерфейс: логика должна тестироваться без окна.',
-            },
-            {
-              group: NODE_IMPORTS,
-              message: 'Headless-пакет не зависит от Node: тот же код исполняется в браузере и на сервере.',
-            },
-          ],
-        },
-      ],
-      'no-restricted-globals': [
-        'error',
-        ...BROWSER_GLOBALS.map((name) => ({
-          name,
-          message: 'Браузерный глобал недоступен в headless-пакете.',
-        })),
       ],
     },
   },
