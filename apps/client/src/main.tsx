@@ -31,8 +31,12 @@ const app = new Application();
 await app.init({
   background: THEME.space,
   resizeTo: window,
-  antialias: true,
-  preference: 'webgpu',
+  // WebGL стабильнее WebGPU на слабых и мобильных GPU, а разрешение выше
+  // 1.5× не даёт заметной картинки, но стоит кадров.
+  preference: 'webgl',
+  antialias: false,
+  resolution: Math.min(window.devicePixelRatio || 1, 1.5),
+  autoDensity: true,
   powerPreference: 'high-performance',
 });
 app.canvas.classList.add('scene');
@@ -40,9 +44,13 @@ host.appendChild(app.canvas);
 
 const params = new URLSearchParams(window.location.search);
 
+/** На телефонах и слабых экранах сразу среднее качество — меньше объектов. */
+const initialQuality: QualityLevel =
+  window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900 ? 'medium' : 'high';
+
 const [board, setBoard] = createSignal<BoardView | null>(null);
 const [ratio, setRatio] = createSignal<Ratio>(50);
-const [quality, setQuality] = createSignal<QualityLevel>('high');
+const [quality, setQuality] = createSignal<QualityLevel>(initialQuality);
 const [mapChoice, setMapChoice] = createSignal(params.get('map') ?? 'arena-duel');
 const [difficulty, setDifficulty] = createSignal<BotDifficulty>(DEFAULT_DIFFICULTY);
 const [started, setStarted] = createSignal(false);

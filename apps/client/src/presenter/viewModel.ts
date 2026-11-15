@@ -67,8 +67,21 @@ export interface BoostButtonView {
   readonly affordable: boolean;
   readonly cooldownSeconds: number;
   readonly ready: boolean;
+  /** Почему кнопка недоступна; null — доступна. */
+  readonly blocked: string | null;
   /** Планета, к которой применится буст; null — нет выбора. */
   readonly planetId: PlanetId | null;
+}
+
+/** Гарнизон выбранной планеты и её предел. */
+export interface GarrisonView {
+  readonly total: MilliUnits;
+  readonly capacity: MilliUnits;
+}
+
+export interface TrainingQueueView {
+  readonly used: number;
+  readonly max: number;
 }
 
 /** Кнопка обучения в казарме: цена за одного хомяка. */
@@ -77,8 +90,16 @@ export interface TrainingButtonView {
   readonly name: string;
   readonly short: string;
   readonly cost: MilliUnits;
+  /** Сколько секунд тренируется один хомяк этого рода. */
+  readonly trainSeconds: number;
   readonly affordable: boolean;
   readonly ready: boolean;
+  /** Сколько заказов этого рода уже в очереди (включая активный). */
+  readonly queued: number;
+  /** Прогресс активного заказа этого рода, 0..1. */
+  readonly progress: number;
+  /** Почему кнопка недоступна; null — доступна. */
+  readonly blocked: string | null;
 }
 
 /** Выбор состава отправляемого отряда. */
@@ -119,6 +140,11 @@ export interface HudView {
   readonly boosts: readonly BoostButtonView[];
   readonly training: readonly TrainingButtonView[];
   readonly composition: CompositionView;
+  /** Гарнизон выбранной планеты: сколько есть и сколько влезает. */
+  readonly garrison: GarrisonView;
+  readonly queue: TrainingQueueView;
+  /** Короткое подтверждение действия или причина отказа. */
+  readonly message: string | null;
   readonly outcome: OutcomeView | null;
   readonly hint: string | null;
   /** Обнаружена правка защищённых значений в клиенте. */

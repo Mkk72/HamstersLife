@@ -1,6 +1,6 @@
 import { formatMilli } from '@hamsters/core';
 import type { BoostKind, Ratio, TroopKind } from '@hamsters/core';
-import { For, Show } from 'solid-js';
+import { For, Index, Show } from 'solid-js';
 import type { BoardView, HudView, QualityLevel } from '../presenter/viewModel';
 import { BoostIcon } from './BoostIcon';
 import { SPEEDS } from './speeds';
@@ -59,6 +59,13 @@ export function GameHud(props: GameHudProps) {
     return Math.max(1, current.mine + current.enemy + current.neutral);
   };
   const percent = (count: number): string => `${(count / total()) * 100}%`;
+  const compositionHint = (): string => {
+    const mode = hud()?.composition.mode ?? 'all';
+    if (mode === 'all') return 'по составу гарнизона';
+    if (mode === 'mixed') return '40% меч · 30% лук · 30% кон';
+    const unit = hud()?.composition.units.find((item) => item.kind === mode);
+    return unit ? `только ${unit.name}` : '';
+  };
 
   return (
     <>
@@ -150,79 +157,148 @@ export function GameHud(props: GameHudProps) {
 
       <div class="hud hud--bottom">
         <div class="bottom-left">
-          <div class="composition">
+          <Show when={hud()?.message}>
+            {(message) => (
+              <div
+                class="toast"
+                classList={{ 'toast--error': message().startsWith('!') }}
+                role="status"
+              >
+                {message().replace(/^! /, '')}
+              </div>
+            )}
+          </Show>
+
+          <div class="panel">
+            <div class="panel__title">
+              <span>Гарнизон</span>
+              <span class="panel__meta">
+                {hud()?.garrison.capacity
+                  ? `${formatMilli(hud()?.garrison.total ?? 0, 0)} / ${formatMilli(
+                      hud()?.garrison.capacity ?? 0,
+                      0,
+                    )}`
+                  : 'выбери планету'}
+              </span>
+            </div>
+            <Show when={!hud()?.garrison.capacity}>
+              <div class="panel__hint">Клик по своей планете покажет состав и предел.</div>
+            </Show>
             <div class="composition__units">
-              <For each={hud()?.composition.units ?? []}>
+              <Index each={hud()?.composition.units ?? []}>
                 {(unit) => (
                   <span
                     class="composition__unit"
-                    classList={{ 'composition__unit--empty': unit.count === 0 }}
-                    title={unit.name}
+                    classList={{ 'composition__unit--empty': unit().count === 0 }}
+                    title={unit().name}
                   >
-                    {unit.short} {Math.floor(unit.count / 1000)}
+                    {unit().short} {Math.floor(unit().count / 1000)}
                   </span>
                 )}
-              </For>
+              </Index>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__title">
+              <span>Отправка</span>
+              <span class="panel__meta">{compositionHint()}</span>
             </div>
             <div class="composition__templates" role="group" aria-label="Состав отряда">
-              <For each={hud()?.composition.templates ?? []}>
+              <Index each={hud()?.composition.templates ?? []}>
                 {(template) => (
                   <button
                     class="chip"
-                    classList={{ 'chip--active': template.active }}
+                    classList={{ 'chip--active': template().active }}
                     type="button"
-                    title="Каким составом отправлять следующий отряд"
-                    onClick={() => props.onComposition(template.id)}
+                    title="Каким составом пойдёт следующий отряд"
+                    onClick={() => props.onComposition(template().id)}
                   >
-                    {template.label}
+                    {template().label}
                   </button>
                 )}
-              </For>
+              </Index>
+            </div>
+            <div class="panel__hint">
+              Доля — {props.ratio()}% гарнизона, меняется колесом или клавишами 1–4.
             </div>
           </div>
 
-          <div class="training" role="group" aria-label="Обучение войск">
-            <For each={hud()?.training ?? []}>
-              {(troop) => (
-                <button
-                  class="train"
-                  classList={{ 'train--disabled': !troop.ready }}
-                  type="button"
-                  title={`${troop.name} — ${formatMilli(troop.cost, 0)} семечек за одного`}
-                  onClick={() => props.onTrain(troop.kind)}
-                >
-                  <span class="train__name">{troop.short}</span>
-                  <span class="train__cost">{formatMilli(troop.cost, 0)}</span>
-                </button>
-              )}
-            </For>
+          <div class="panel">
+            <div class="panel__title">
+              <span>Казарма</span>
+              <span class="panel__meta">
+                очередь {hud()?.queue.used ?? 0}/{hud()?.queue.max ?? 0}
+              </span>
+            </div>
+            <div class="training" role="group" aria-label="Обучение войск">
+              <Index each={hud()?.training ?? []}>
+                {(troop) => (
+                  <button
+                    class="train"
+                    type="button"
+                    disabled={!troop().ready}
+                    title={
+                      troop().blocked ??
+                      `${troop().name}: ${formatMilli(troop().cost, 0)} семечек, один за ${troop().trainSeconds} с`
+                    }
+                    onClick={() => props.onTrain(troop().kind)}
+                  >
+                    <span class="train__top">
+                      <span class="train__name">{troop().short}</span>
+                      <Show when={troop().queued > 0}>
+                        <span class="train__badge">×{troop().queued}</span>
+                      </Show>
+                    </span>
+                    <span class="train__cost">{formatMilli(troop().cost, 0)}</span>
+                    <Show when={troop().progress > 0}>
+                      <span class="train__bar">
+                        <span style={{ width: `${Math.round(troop().progress * 100)}%` }} />
+                      </span>
+                    </Show>
+                  </button>
+                )}
+              </Index>
+            </div>
+            <div class="panel__hint">
+              Клик — один хомяк в очередь. Если гарнизон полон, обучение ждёт места.
+            </div>
           </div>
 
-          <div class="boosts">
-          <For each={hud()?.boosts ?? []}>
-            {(boost) => (
-              <button
-                class="boost"
-                classList={{ 'boost--disabled': !boost.ready }}
-                type="button"
-                title={`${BOOST_LABEL[boost.kind]} — ${formatMilli(boost.cost, 0)} семечек`}
-                onClick={() => props.onBoost(boost.kind)}
-              >
-                <BoostIcon kind={boost.kind} />
-                <span class="boost__text">
-                  <span class="boost__name">{BOOST_LABEL[boost.kind]}</span>
-                  <span class="boost__cost">
-                    <Show
-                      when={boost.cooldownSeconds > 0}
-                      fallback={<>{formatMilli(boost.cost, 0)}</>}
-                    >
-                      {Math.ceil(boost.cooldownSeconds)} с
-                    </Show>
-                  </span>
-                </span>
-              </button>
-            )}
-          </For>
+          <div class="panel">
+            <div class="panel__title">
+              <span>Бусты</span>
+              <span class="panel__meta">семечки</span>
+            </div>
+            <div class="boosts">
+              <Index each={hud()?.boosts ?? []}>
+                {(boost) => (
+                  <button
+                    class="boost"
+                    type="button"
+                    disabled={!boost().ready}
+                    title={
+                      boost().blocked ??
+                      `${BOOST_LABEL[boost().kind]} — ${formatMilli(boost().cost, 0)} семечек`
+                    }
+                    onClick={() => props.onBoost(boost().kind)}
+                  >
+                    <BoostIcon kind={boost().kind} />
+                    <span class="boost__text">
+                      <span class="boost__name">{BOOST_LABEL[boost().kind]}</span>
+                      <span class="boost__cost">
+                        <Show
+                          when={boost().cooldownSeconds > 0}
+                          fallback={<>{formatMilli(boost().cost, 0)}</>}
+                        >
+                          {Math.ceil(boost().cooldownSeconds)} с
+                        </Show>
+                      </span>
+                    </span>
+                  </button>
+                )}
+              </Index>
+            </div>
           </div>
         </div>
 

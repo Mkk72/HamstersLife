@@ -12,12 +12,15 @@ import {
   distance,
   evaluateOutcome,
   flightTicks,
+  formatMilli,
   garrisonOf,
   speedUnitsPerSecond,
   troopTotal,
-} from '@hamsters/core';import type {
+} from '@hamsters/core';
+import type {
   Balance,
   BoostKind,
+  CommandErrorCode,
   CommandResult,
   ContentProvider,
   GameState,
@@ -41,6 +44,27 @@ import type {
   TrainingButtonView,
   TroopCountView,
 } from './viewModel';
+
+const BOOST_NAMES: Readonly<Record<BoostKind, string>> = {
+  production: 'Колесо',
+  speed: 'Щёки',
+  defense: 'Скорлупа',
+};
+
+const TRAIN_ERRORS: Partial<Record<CommandErrorCode, string>> = {
+  'queue-full': 'Очередь казармы заполнена',
+  'not-enough-seeds': 'Не хватает семечек',
+  'not-your-planet': 'Только своя планета',
+  'unknown-planet': 'Планета не найдена',
+  'unknown-troop': 'Такого рода войск нет',
+};
+
+const BOOST_ERRORS: Partial<Record<CommandErrorCode, string>> = {
+  cooldown: 'Ещё перезарядка',
+  'not-enough-seeds': 'Не хватает семечек',
+  'wrong-boost-target': 'Нужна своя планета',
+  'not-your-planet': 'Только своя планета',
+};
 import { ProtectedInt } from '../security/protectedInt';
 
 export interface PresenterDeps {
@@ -82,6 +106,8 @@ export class GamePresenter {
   #tampered = false;
   #lastMaskTick = -1000;
   #outcomePlayed = false;
+  /** Короткое сообщение игроку: «заказ принят», «не хватает семечек» и т.п. */
+  #message: { readonly text: string; readonly untilTick: number } | null = null;
 
   constructor(deps: PresenterDeps) {
     this.#sim = deps.sim;
@@ -224,7 +250,12 @@ export class GamePresenter {
   /** Заказ на обучение для первой выбранной планеты. */
   train(kind: TroopKind, amount = 1): CommandResult | null {
     const planetId = this.#firstSelected();
-    if (planetId === null) return null;
+    if (planetId === null) {
+      this.#notify('Сначала выбери свою планету');
+      this.#view.playError();
+      this.render();
+      return null;
+    }
     const result = this.#sim.sendCommand({
       type: 'TrainTroops',
       playerId: this.#playerId,
@@ -232,8 +263,17 @@ export class GamePresenter {
       kind,
       amount,
     });
-    if (result.ok) this.#view.playTrain();
-    else this.#view.playError();
+    const stats = this.#balance.troops[kind];
+    if (result.ok) {
+      const planet = this.#sim.getSnapshot().planets[planetId];
+      const used = planet?.training.length ?? 1;
+      const max = this.#balance.maxTrainingQueue;
+      this.#notify(`${stats.shortName}: заказ принят · очередь ${used}/${max}`);
+      this.#view.playTrain();
+    } else {
+    this.#notify(TRAIN_ERRORS[result.error] ?? 'Заказ не принят', true);
+      this.#view.playError();
+    }
     this.render();
     return result;
   }
@@ -241,17 +281,32 @@ export class GamePresenter {
   /** Буст применяется к первой выбранной планете. */
   applyBoost(kind: BoostKind): CommandResult | null {
     const planetId = this.#firstSelected();
-    if (planetId === null) return null;
+    if (planetId === null) {
+      this.#notify('Сначала выбери свою планету');
+      this.#view.playError();
+      this.render();
+      return null;
+    }
     const result = this.#sim.sendCommand({
       type: 'ApplyBoost',
       playerId: this.#playerId,
       planetId,
       boost: kind,
     });
-    if (result.ok) this.#view.playBoost(planetId, kind);
-    else this.#view.playError();
+    if (result.ok) {
+      this.#notify(`${BOOST_NAMES[kind]}: включён`);
+      this.#view.playBoost(planetId, kind);
+    } else {
+      this.#notify(BOOST_ERRORS[result.error] ?? 'Буст не сработал', true);
+      this.#view.playError();
+    }
     this.render();
     return result;
+  }
+
+  #notify(text: string, isError = false): void {
+    const tick = this.#sim.getSnapshot().tick;
+    this.#message = { text: isError ? `! ${text}` : text, untilTick: tick + 60 };
   }
 
   render(): void {
@@ -446,12 +501,18 @@ export class GamePresenter {
       const stats = this.#balance.boosts[kind];
       const cooldownTicks = Math.max(0, (me?.boostCooldownUntilTick[kind] ?? 0) - tick);
       const affordable = (me?.seeds ?? 0) >= stats.cost;
+      const cooldownSeconds = cooldownTicks / TICKS_PER_SECOND;
+      let blocked: string | null = null;
+      if (planetId === null) blocked = 'Выбери планету';
+      else if (cooldownTicks > 0) blocked = `Перезарядка ${Math.ceil(cooldownSeconds)} с`;
+      else if (!affordable) blocked = `Нужно ${formatMilli(stats.cost, 0)} семечек`;
       return {
         kind,
         cost: stats.cost,
         affordable,
-        cooldownSeconds: cooldownTicks / TICKS_PER_SECOND,
-        ready: cooldownTicks === 0 && affordable && planetId !== null,
+        cooldownSeconds,
+        ready: blocked === null,
+        blocked,
         planetId,
       };
     });
@@ -459,18 +520,39 @@ export class GamePresenter {
     const outcome = evaluateOutcome(state);
 
     const selectedPlanet = planetId !== null ? state.planets[planetId] : undefined;
+    const queueMax = this.#balance.maxTrainingQueue;
+    const queueUsed = selectedPlanet?.training.length ?? 0;
+    const activeOrder = selectedPlanet?.training[0];
     const training: TrainingButtonView[] = TROOP_KINDS.map((kind) => {
       const stats = this.#balance.troops[kind];
       const affordable = (me?.seeds ?? 0) >= stats.costSeeds;
-      const ready =
-        selectedPlanet !== undefined &&
-        selectedPlanet.ownerId === this.#playerId &&
-        selectedPlanet.training.length < this.#balance.maxTrainingQueue &&
-        affordable;
-      return { kind, name: stats.name, short: stats.shortName, cost: stats.costSeeds, affordable, ready };
+      const orders = selectedPlanet?.training.filter((order) => order.kind === kind) ?? [];
+      const progress =
+        activeOrder && activeOrder.kind === kind
+          ? Math.min(1, activeOrder.progressTicks / Math.max(1, stats.trainTicks))
+          : 0;
+
+      let blocked: string | null = null;
+      if (!selectedPlanet) blocked = 'Выбери свою планету';
+      else if (selectedPlanet.ownerId !== this.#playerId) blocked = 'Только своя планета';
+      else if (queueUsed >= queueMax) blocked = `Очередь заполнена (${queueUsed}/${queueMax})`;
+      else if (!affordable) blocked = `Нужно ${formatMilli(stats.costSeeds, 0)} семечек`;
+
+      return {
+        kind,
+        name: stats.name,
+        short: stats.shortName,
+        cost: stats.costSeeds,
+        trainSeconds: stats.trainTicks / TICKS_PER_SECOND,
+        affordable,
+        ready: blocked === null,
+        queued: orders.length,
+        progress,
+        blocked,
+      };
     });
 
-    const selected = planetId !== null ? state.planets[planetId] : undefined;
+    const selected = selectedPlanet;
     const units: TroopCountView[] = TROOP_KINDS.map((kind) => {
       const stats = this.#balance.troops[kind];
       return {
@@ -490,6 +572,13 @@ export class GamePresenter {
       })),
     ];
 
+    const garrison = {
+      total: selected ? garrisonOf(selected) : 0,
+      capacity: selected ? this.#balance.planetSizes[selected.size].capacity : 0,
+    };
+    const message =
+      this.#message && tick < this.#message.untilTick ? this.#message.text : null;
+
     this.#rotateMasks(tick);
     this.#guarded.seeds.set(me?.seeds ?? 0);
     this.#guarded.mine.set(mine);
@@ -508,6 +597,9 @@ export class GamePresenter {
       boosts,
       training,
       composition: { units, templates, mode: this.#composition },
+      garrison,
+      queue: { used: queueUsed, max: queueMax },
+      message,
       outcome: outcome.finished
         ? { finished: true, winnerId: outcome.winnerId, youWon: outcome.winnerId === this.#playerId }
         : null,

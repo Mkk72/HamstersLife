@@ -391,6 +391,44 @@ describe('резиновая стрелка', () => {
   });
 });
 
+describe('подсказки панели', () => {
+  it('без выбранной планеты кнопки объясняют причину', () => {
+    const { view } = setup();
+    const hud = view.last?.hud;
+    expect(hud?.training[0]?.blocked).toBe('Выбери свою планету');
+    expect(hud?.training[0]?.ready).toBe(false);
+    expect(hud?.boosts[0]?.blocked).toBe('Выбери планету');
+    expect(hud?.garrison.capacity).toBe(0);
+  });
+
+  it('после заказа видно очередь и подтверждение', () => {
+    const { presenter, view } = setup();
+    presenter.pointerDown(0);
+    const result = presenter.train('swordsman');
+    expect(result?.ok).toBe(true);
+
+    const hud = view.last?.hud;
+    expect(hud?.queue.used).toBe(1);
+    expect(hud?.training.find((troop) => troop.kind === 'swordsman')?.queued).toBe(1);
+    expect(hud?.message).toContain('заказ принят');
+  });
+
+  it('не хватает семечек — причина и в кнопке, и в сообщении', () => {
+    const { presenter, view, source } = setup();
+    presenter.pointerDown(0);
+    const player = source.sim.state.players[0];
+    if (!player) throw new Error('нет игрока');
+    player.seeds = 0;
+
+    const result = presenter.train('mage');
+    expect(result?.ok).toBe(false);
+    expect(view.last?.hud.training.find((troop) => troop.kind === 'mage')?.blocked).toContain(
+      'Нужно',
+    );
+    expect(view.last?.hud.message).toContain('Не хватает');
+  });
+});
+
 describe('бусты', () => {
   it('применяет буст к выбранной планете и просит эффект', () => {
     const { presenter, view, source } = setup();
