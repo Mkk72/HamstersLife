@@ -11,7 +11,9 @@ import {
   distance,
   evaluateOutcome,
   flightTicks,
+  garrisonOf,
   speedUnitsPerSecond,
+  troopTotal,
 } from '@hamsters/core';
 import type {
   Balance,
@@ -250,7 +252,7 @@ export class GamePresenter {
           toX: to?.x ?? 0,
           toY: to?.y ?? 0,
           progress,
-          troops: fleet.troops,
+          troops: troopTotal(fleet.troops),
         };
       }),
       routes: state.routes.map((route) => {
@@ -264,7 +266,7 @@ export class GamePresenter {
           toX: to?.x ?? 0,
           toY: to?.y ?? 0,
           weightPermille: route.weightPermille,
-          pending: route.pending,
+          pending: troopTotal(route.pending),
         };
       }),
       arrows: this.#arrowViews(state, tick),
@@ -297,7 +299,7 @@ export class GamePresenter {
       y: planet.y,
       size: planet.size,
       ownerId: planet.ownerId,
-      garrison: planet.garrison,
+      garrison: garrisonOf(planet),
       selected: this.#selected.has(planet.id),
       mine: planet.ownerId === this.#playerId && tick < 20 * 10,
       boosts: {
@@ -334,7 +336,7 @@ export class GamePresenter {
   }
 
   #canSend(source: Planet): boolean {
-    const troops = Math.floor((source.garrison * this.#ratio) / 100);
+    const troops = Math.floor((garrisonOf(source) * this.#ratio) / 100);
     return troops >= MIN_FLEET_SIZE;
   }
 

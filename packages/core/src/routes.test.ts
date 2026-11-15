@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { troopTotal } from './troops';
 import { testBalance } from './__fixtures__/balance';
 import { mapFour, mapThree } from './__fixtures__/maps';
 import { applyCommand } from './commands';
 import { hashState } from './hash';
-import { createGameState, getPlanet } from './state';
+import { createGameState, garrisonOf, garrisonOfPlanet, getPlanet, setGarrison } from './state';
 import { runTicks, step } from './tick';
 import type { Balance } from './types';
 
@@ -37,23 +38,23 @@ describe('маршруты: создание и вес', () => {
       fromPlanetId: 0,
       toPlanetId: 3,
       weightPermille: 500,
-      pending: 0,
     });
-    expect(getPlanet(state, 0)?.garrison).toBe(5000);
+    expect(troopTotal(state.routes[0]!.pending)).toBe(0);
+    expect(garrisonOfPlanet(state, 0)).toBe(5000);
     expect(state.fleets).toHaveLength(1);
-    expect(state.fleets[0]?.troops).toBe(5000);
+    expect(troopTotal(state.fleets[0]!.troops)).toBe(5000);
   });
 
   it('повторная стрелка меняет вес и не списывает войска снова', () => {
     const state = fresh();
     send(state, [0], 3, 50);
-    const garrison = getPlanet(state, 0)?.garrison;
+    const garrison = garrisonOfPlanet(state, 0);
 
     send(state, [0], 3, 75);
 
     expect(state.routes).toHaveLength(1);
     expect(state.routes[0]?.weightPermille).toBe(750);
-    expect(getPlanet(state, 0)?.garrison).toBe(garrison);
+    expect(garrisonOfPlanet(state, 0)).toBe(garrison);
     expect(state.fleets).toHaveLength(1);
   });
 
@@ -73,20 +74,20 @@ describe('маршруты: поток производства', () => {
     step(state, testBalance);
 
     // M: 50 mH за тик; в маршрут 25, в гарнизон 25
-    expect(state.routes[0]?.pending).toBe(25);
-    expect(getPlanet(state, 0)?.garrison).toBe(5025);
+    expect(troopTotal(state.routes[0]!.pending)).toBe(25);
+    expect(garrisonOfPlanet(state, 0)).toBe(5025);
   });
 
   it('накапливает отряд на один хомяк и выпускает его', () => {
     const state = fresh();
     send(state, [0], 3, 50);
     runTicks(state, testBalance, 39);
-    expect(state.routes[0]?.pending).toBe(25 * 39);
+    expect(troopTotal(state.routes[0]!.pending)).toBe(25 * 39);
     // первый отряд уже прилетел и разбился о равный гарнизон
     expect(state.fleets).toHaveLength(0);
 
     runTicks(state, testBalance, 1);
-    expect(state.routes[0]?.pending).toBe(0);
+    expect(troopTotal(state.routes[0]!.pending)).toBe(0);
     expect(state.fleets).toHaveLength(1);
   });
 
@@ -98,8 +99,8 @@ describe('маршруты: поток производства', () => {
     step(state, testBalance);
 
     // всего 50 mH на три маршрута: 17 + 17 + 16 (крупнейшие остатки)
-    expect(state.routes.map((route) => route.pending)).toEqual([17, 17, 16]);
-    expect(getPlanet(state, 0)?.garrison).toBe(1250);
+    expect(state.routes.map((route) => troopTotal(route.pending))).toEqual([17, 17, 16]);
+    expect(garrisonOfPlanet(state, 0)).toBe(1250);
   });
 
   it('100/100/50 делится как 40/40/20 процентов', () => {
@@ -109,7 +110,7 @@ describe('маршруты: поток производства', () => {
     send(state, [0], 3, 50);
     step(state, testBalance);
 
-    expect(state.routes.map((route) => route.pending)).toEqual([20, 20, 10]);
+    expect(state.routes.map((route) => troopTotal(route.pending))).toEqual([20, 20, 10]);
   });
 
   it('на вместимости в маршрут уходит всё производство', () => {
@@ -117,12 +118,12 @@ describe('маршруты: поток производства', () => {
     send(state, [0], 3, 50);
     const planet = getPlanet(state, 0);
     if (!planet) throw new Error('нет планеты');
-    planet.garrison = testBalance.planetSizes.M.capacity;
+    setGarrison(planet, testBalance.planetSizes.M.capacity);
 
     step(state, testBalance);
 
-    expect(planet.garrison).toBe(testBalance.planetSizes.M.capacity);
-    expect(state.routes[0]?.pending).toBe(50);
+    expect(garrisonOf(planet)).toBe(testBalance.planetSizes.M.capacity);
+    expect(troopTotal(state.routes[0]!.pending)).toBe(50);
   });
 
   it('излишек сверх вместимости сбрасывается по стрелкам', () => {
@@ -133,26 +134,26 @@ describe('маршруты: поток производства', () => {
     const capacity = testBalance.planetSizes.M.capacity;
 
     // пришло подкрепление, гарнизон выше предела
-    planet.garrison = capacity + 5000;
+    setGarrison(planet, capacity + 5000);
     step(state, testBalance);
 
     // излишек 5000 + генерация 50 ушли в маршрут одним отрядом,
     // гарнизон вернулся к пределу
-    expect(planet.garrison).toBe(capacity);
-    expect(state.routes[0]?.pending).toBe(0);
+    expect(garrisonOf(planet)).toBe(capacity);
+    expect(troopTotal(state.routes[0]!.pending)).toBe(0);
     expect(state.fleets).toHaveLength(2);
-    expect(state.fleets[1]?.troops).toBe(5050);
+    expect(troopTotal(state.fleets[1]!.troops)).toBe(5050);
   });
 
   it('без маршрутов излишек подкрепления тоже сохраняется', () => {
     const state = createGameState(mapThree, testBalance, 5);
     const planet = getPlanet(state, 0);
     if (!planet) throw new Error('нет планеты');
-    planet.garrison = testBalance.planetSizes.M.capacity + 7000;
+    setGarrison(planet, testBalance.planetSizes.M.capacity + 7000);
 
     runTicks(state, testBalance, 10);
 
-    expect(planet.garrison).toBe(testBalance.planetSizes.M.capacity + 7000);
+    expect(garrisonOf(planet)).toBe(testBalance.planetSizes.M.capacity + 7000);
   });
 
   it('порог выпуска отряда задаётся балансом', () => {
@@ -172,7 +173,7 @@ describe('маршруты: поток производства', () => {
   it('без маршрутов производство копится до вместимости', () => {
     const state = createGameState(mapThree, testBalance, 5);
     runTicks(state, testBalance, 100);
-    expect(getPlanet(state, 0)?.garrison).toBe(testBalance.planetSizes.M.capacity);
+    expect(garrisonOfPlanet(state, 0)).toBe(testBalance.planetSizes.M.capacity);
   });
 });
 
@@ -209,7 +210,7 @@ describe('маршруты: удаление', () => {
     const state = fresh();
     const victim = getPlanet(state, 2);
     if (!victim) throw new Error('нет планеты');
-    victim.garrison = 1000;
+    setGarrison(victim, 1000);
 
     send(state, [0], 2, 100); // маршрут на вражескую планету
     send(state, [1], 3, 50); // маршрут в сторону, его не должно задеть

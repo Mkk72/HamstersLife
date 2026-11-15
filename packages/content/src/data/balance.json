@@ -1,6 +1,6 @@
 {
-  "rulesVersion": 2,
-  "contentVersion": 2,
+  "rulesVersion": 3,
+  "contentVersion": 3,
   "planetSizes": {
     "S": { "capacity": 6000, "productionPerSecond": 600 },
     "M": { "capacity": 12000, "productionPerSecond": 1000 },

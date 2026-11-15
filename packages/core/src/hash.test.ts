@@ -4,6 +4,7 @@ import { mapFour } from './__fixtures__/maps';
 import { applyCommand } from './commands';
 import { hashState, hashToHex } from './hash';
 import { createGameState } from './state';
+import { createTroopStack } from './troops';
 import { runTicks } from './tick';
 import type { Command } from './types';
 
@@ -58,7 +59,7 @@ describe('детерминизм', () => {
       fromPlanetId: 0,
       toPlanetId: 3,
       weightPermille: 500,
-      pending: 0,
+      pending: createTroopStack(),
     });
     second.routes.push({
       id: 1,
@@ -66,7 +67,7 @@ describe('детерминизм', () => {
       fromPlanetId: 0,
       toPlanetId: 3,
       weightPermille: 250,
-      pending: 0,
+      pending: createTroopStack(),
     });
     expect(hashState(first)).not.toBe(hashState(second));
   });

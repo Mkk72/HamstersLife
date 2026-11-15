@@ -10,7 +10,8 @@
 import { MIN_FLEET_SIZE } from './combat';
 import { setBoost } from './boosts';
 import { launchFleet } from './fleets';
-import { getPlanet, getPlayer } from './state';
+import { garrisonOf, getPlanet, getPlayer } from './state';
+import { createTroopStack, resizeTroops, subtractTroops } from './troops';
 import type { Balance, Command, CommandResult, GameState, Planet, Route } from './types';
 import { BOOST_KINDS } from './types';
 
@@ -76,15 +77,16 @@ function sendFleet(
       fromPlanetId: planet.id,
       toPlanetId: target.id,
       weightPermille: command.ratio * 10,
-      pending: 0,
+      pending: createTroopStack(),
     };
     state.nextRouteId += 1;
     state.routes.push(route);
 
-    const troops = Math.floor((planet.garrison * command.ratio) / 100);
-    if (troops < MIN_FLEET_SIZE) continue;
-    planet.garrison -= troops;
-    const fleet = launchFleet(state, balance, command.playerId, planet, target.id, troops);
+    const amount = Math.floor((garrisonOf(planet) * command.ratio) / 100);
+    if (amount < MIN_FLEET_SIZE) continue;
+    const part = resizeTroops(planet.troops, amount);
+    planet.troops = subtractTroops(planet.troops, part);
+    const fleet = launchFleet(state, balance, command.playerId, planet, target.id, part);
     if (fleet) fleetIds.push(fleet.id);
   }
 

@@ -1,5 +1,7 @@
 import type { MilliUnits } from './units';
-import type { TroopKind } from './troops';
+import type { TroopKind, TroopStack } from './troops';
+
+export type { TroopStack } from './troops';
 
 /** Владелец планеты «нейтрал». Игроки нумеруются с 0. */
 export const NEUTRAL_OWNER = -1;
@@ -59,7 +61,8 @@ export interface Planet {
   /** Базовая защита в permille: 1000 = 1.0. */
   readonly defensePermille: number;
   ownerId: PlayerId;
-  garrison: MilliUnits;
+  /** Состав гарнизона по родам войск. */
+  troops: TroopStack;
   /** До какого тика действует каждый буст. Новый вид — новая запись. */
   boosts: Record<BoostKind, Tick>;
 }
@@ -69,15 +72,15 @@ export interface Fleet {
   readonly ownerId: PlayerId;
   readonly fromPlanetId: PlanetId;
   readonly toPlanetId: PlanetId;
-  readonly troops: MilliUnits;
+  readonly troops: TroopStack;
   readonly departTick: Tick;
   readonly arriveTick: Tick;
 }
 
 /**
  * Постоянный маршрут переброски: стрелка, которая живёт, пока её не отрежут.
- * `weightPermille` — выбранная доля (250…1000), `pending` — накопленные
- * milli-единицы, ещё не превратившиеся в отряд (минимум 1 хомяк).
+ * `weightPermille` — выбранная доля (250…1000), `pending` — накопленный состав,
+ * ещё не превратившийся в отряд (минимум — `minRouteFleet` суммарно).
  */
 export interface Route {
   readonly id: RouteId;
@@ -85,7 +88,7 @@ export interface Route {
   readonly fromPlanetId: PlanetId;
   readonly toPlanetId: PlanetId;
   weightPermille: number;
-  pending: MilliUnits;
+  pending: TroopStack;
 }
 
 export interface PlayerState {

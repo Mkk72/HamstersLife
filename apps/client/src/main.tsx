@@ -1,6 +1,6 @@
 import { CONTENT, getMap } from '@hamsters/content';
 import { SimpleBot } from '@hamsters/ai';
-import { Simulation } from '@hamsters/core';
+import { Simulation, createTroopStack } from '@hamsters/core';
 import type { BoostKind, MapDefinition, Ratio } from '@hamsters/core';
 import { generateDuelMap } from '@hamsters/levelgen';
 import { Application } from 'pixi.js';
@@ -79,7 +79,7 @@ function injectStressFleets(sim: Simulation): void {
       ownerId: index % 2,
       fromPlanetId: from.id,
       toPlanetId: to.id,
-      troops: 500,
+      troops: createTroopStack({ swordsman: 500 }),
       departTick: 0,
       arriveTick: 1_000_000,
     });

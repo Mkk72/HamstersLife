@@ -8,8 +8,9 @@ import { resolveBattle, resolveCapture } from './combat';
 import { clearBoosts } from './boosts';
 import { launchFleet } from './fleets';
 import { defensePermille, productionPerTick, seedsPerTick } from './modifiers';
-import { hasForces } from './state';
-import type { Balance, Fleet, GameState, PlanetId, PlayerId, Route } from './types';
+import { garrisonOf, hasForces } from './state';
+import { createTroopStack, mergeTroops, resizeTroops, subtractTroops, troopTotal } from './troops';
+import type { Balance, Fleet, GameState, PlanetId, PlayerId, Route, TroopStack } from './types';
 import { NEUTRAL_OWNER } from './types';
 import { PERMILLE, mulPermille } from './units';
 
@@ -20,14 +21,25 @@ export interface TickContext {
 
 export type TickSystem = (state: GameState, context: TickContext) => void;
 
+/** Базовые бойцы, которые даёт производство планеты. */
+function baseTroops(amount: number): TroopStack {
+  return createTroopStack({ swordsman: amount });
+}
+
+function addBaseTroops(planet: { troops: TroopStack }, amount: number): void {
+  if (amount <= 0) return;
+  planet.troops.swordsman += amount;
+}
+
 /**
  * 1. Рост планет и постоянные маршруты.
  *
- * Если у планеты есть живые маршруты, часть производства уходит в них:
- *  - ниже вместимости экспортируется доля `min(100%, Σвесов)`;
- *  - на вместимости экспортируется всё производство.
- * Между маршрутами экспорт делится пропорционально весам (три по 50% → по 1/3).
- * Накопленные milli-единицы превращаются в отряд, когда набирается 1 хомяк.
+ * Производство даёт базовых бойцов. Если у планеты есть живые маршруты:
+ *  - ниже вместимости экспортируется доля `min(100%, Σвесов)` производства;
+ *  - ровно на вместимости — всё производство;
+ *  - выше вместимости — излишек сбрасывается по стрелкам сверх генерации.
+ * Состав при этом сохраняется: поток производства — базовые бойцы, излишек
+ * уходит пропорционально текущему составу гарнизона.
  */
 export const productionSystem: TickSystem = (state, context) => {
   for (const planet of state.planets) {
@@ -37,75 +49,112 @@ export const productionSystem: TickSystem = (state, context) => {
     const routes = state.routes.filter(
       (route) => route.fromPlanetId === planet.id && route.ownerId === planet.ownerId,
     );
+    const total = garrisonOf(planet);
 
     if (routes.length === 0) {
-      // Производство не выходит за предел; излишек от подкреплений сохраняется.
-      if (planet.garrison < capacity) {
-        planet.garrison = Math.min(capacity, planet.garrison + produced);
-      }
+      addBaseTroops(planet, Math.min(produced, Math.max(0, capacity - total)));
       continue;
     }
 
     const sumWeights = routes.reduce((sum, route) => sum + route.weightPermille, 0);
-    let exported: number;
-    if (planet.garrison > capacity) {
-      // Излишек от подкреплений сбрасывается по стрелкам сверх генерации.
-      exported = produced + (planet.garrison - capacity);
-      planet.garrison = capacity;
-    } else if (planet.garrison === capacity) {
-      // Предел ровно заполнен: уходит только генерация.
-      exported = produced;
-    } else {
-      exported = mulPermille(produced, Math.min(PERMILLE, sumWeights));
-      planet.garrison = Math.min(capacity, planet.garrison + produced - exported);
-    }
-    distributeExported(routes, exported, sumWeights);
+    const exported = buildExport(planet, total, capacity, produced, sumWeights);
+    if (exported.amount <= 0) continue;
+    distributeStack(routes, exported.troops, exported.amount, sumWeights);
   }
 
   flushRoutes(state, context);
 };
 
-/** Раздать экспорт по маршрутам без потери milli-единиц (крупнейшие остатки). */
-function distributeExported(
+interface ExportResult {
+  readonly amount: number;
+  readonly troops: TroopStack;
+}
+
+function buildExport(
+  planet: { troops: TroopStack },
+  total: number,
+  capacity: number,
+  produced: number,
+  sumWeights: number,
+): ExportResult {
+  if (total > capacity) {
+    const overflow = total - capacity;
+    const overflowTroops = resizeTroops(planet.troops, overflow);
+    planet.troops = resizeTroops(planet.troops, capacity);
+    return {
+      amount: overflow + produced,
+      troops: mergeTroops(overflowTroops, baseTroops(produced)),
+    };
+  }
+
+  if (total === capacity) {
+    return { amount: produced, troops: baseTroops(produced) };
+  }
+
+  const exported = mulPermille(produced, Math.min(PERMILLE, sumWeights));
+  const free = capacity - total;
+  let retain = produced - exported;
+  let extra = 0;
+  if (retain > free) {
+    extra = retain - free;
+    retain = free;
+  }
+  addBaseTroops(planet, retain);
+  return { amount: exported + extra, troops: baseTroops(exported + extra) };
+}
+
+/** Раздать состав по маршрутам без потери milli-единиц (крупнейшие остатки). */
+function distributeStack(
   routes: readonly Route[],
-  exported: number,
+  stack: TroopStack,
+  amount: number,
   sumWeights: number,
 ): void {
-  if (exported <= 0 || sumWeights <= 0) return;
+  if (amount <= 0 || sumWeights <= 0) return;
 
-  const parts = routes.map((route) => {
-    const exact = exported * route.weightPermille;
-    return { route, share: Math.floor(exact / sumWeights), remainder: exact % sumWeights };
+  const shares = routes.map((route) => {
+    const exact = amount * route.weightPermille;
+    return {
+      route,
+      index: route.id,
+      share: Math.floor(exact / sumWeights),
+      remainder: exact % sumWeights,
+    };
   });
 
-  const assigned = parts.reduce((sum, part) => sum + part.share, 0);
-  let left = exported - assigned;
-  parts.sort((a, b) => b.remainder - a.remainder || a.route.id - b.route.id);
-
-  let index = 0;
-  while (left > 0 && parts.length > 0) {
-    const part = parts[index % parts.length];
+  const assigned = shares.reduce((sum, part) => sum + part.share, 0);
+  let left = amount - assigned;
+  shares.sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  let cursor = 0;
+  while (left > 0 && shares.length > 0) {
+    const part = shares[cursor % shares.length];
     if (!part) break;
     part.share += 1;
     left -= 1;
-    index += 1;
+    cursor += 1;
   }
 
-  for (const part of parts) part.route.pending += part.share;
+  let remaining = stack;
+  for (const part of shares) {
+    if (part.share <= 0) continue;
+    const piece = resizeTroops(remaining, Math.min(troopTotal(remaining), part.share));
+    remaining = subtractTroops(remaining, piece);
+    part.route.pending = mergeTroops(part.route.pending, piece);
+  }
 }
 
 /** Маршруты, накопившие минимальный отряд, выпускают его. */
 function flushRoutes(state: GameState, context: TickContext): void {
   const threshold = context.balance.minRouteFleet;
   for (const route of state.routes) {
-    if (route.pending < threshold) continue;
+    if (troopTotal(route.pending) < threshold) continue;
     const from = state.planets[route.fromPlanetId];
     if (!from || from.ownerId !== route.ownerId) {
-      route.pending = 0;
+      route.pending = createTroopStack();
       continue;
     }
     const troops = route.pending;
-    route.pending = 0;
+    route.pending = createTroopStack();
     launchFleet(state, context.balance, route.ownerId, from, route.toPlanetId, troops);
   }
 }
@@ -162,6 +211,11 @@ function advanceFleets(state: GameState, tick: number): Map<PlanetId, Fleet[]> {
   return arrivals;
 }
 
+interface Incumbent {
+  readonly ownerId: PlayerId;
+  troops: TroopStack;
+}
+
 function resolveArrivals(
   state: GameState,
   arrivals: Map<PlanetId, Fleet[]>,
@@ -174,7 +228,7 @@ function resolveArrivals(
     if (!planet) continue;
 
     const fleets = [...(arrivals.get(planetId) ?? [])].sort((a, b) => a.id - b.id);
-    let incumbent: { ownerId: PlayerId; troops: number } | null = null;
+    let incumbent: Incumbent | null = null;
 
     for (const fleet of fleets) {
       if (incumbent === null) {
@@ -182,42 +236,48 @@ function resolveArrivals(
         continue;
       }
       if (incumbent.ownerId === fleet.ownerId) {
-        incumbent.troops += fleet.troops;
+        incumbent.troops = mergeTroops(incumbent.troops, fleet.troops);
         continue;
       }
-      const battle = resolveBattle(incumbent.troops, fleet.troops);
+      const battle = resolveBattle(troopTotal(incumbent.troops), troopTotal(fleet.troops));
       if (battle.winner === 'none') {
         incumbent = null;
+      } else if (battle.winner === 'attacker') {
+        incumbent = {
+          ownerId: incumbent.ownerId,
+          troops: resizeTroops(incumbent.troops, battle.remaining),
+        };
       } else {
         incumbent = {
-          ownerId: battle.winner === 'attacker' ? incumbent.ownerId : fleet.ownerId,
-          troops: battle.remaining,
+          ownerId: fleet.ownerId,
+          troops: resizeTroops(fleet.troops, battle.remaining),
         };
       }
     }
 
-    if (!incumbent || incumbent.troops <= 0) continue;
+    if (!incumbent || troopTotal(incumbent.troops) <= 0) continue;
 
     if (planet.ownerId === incumbent.ownerId) {
-      planet.garrison += incumbent.troops;
+      // Подкрепление: состав складывается, излишек сверх вместимости сохраняется.
+      planet.troops = mergeTroops(planet.troops, incumbent.troops);
       continue;
     }
 
     const outcome = resolveCapture({
-      garrison: planet.garrison,
+      garrison: garrisonOf(planet),
       defensePermille: defensePermille(planet, context.tick, context.balance),
-      attackers: incumbent.troops,
+      attackers: troopTotal(incumbent.troops),
       minCaptureGarrison: context.balance.minCaptureGarrison,
     });
 
     if (outcome.captured) {
       planet.ownerId = incumbent.ownerId;
-      planet.garrison = outcome.garrison;
+      planet.troops = resizeTroops(incumbent.troops, outcome.garrison);
       clearBoosts(planet);
       // Маршруты прежнего владельца сгорают вместе с планетой.
       removeRoutesForPlanet(state, planet.id);
     } else {
-      planet.garrison = outcome.garrison;
+      planet.troops = resizeTroops(planet.troops, outcome.garrison);
     }
   }
 }

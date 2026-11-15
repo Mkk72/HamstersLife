@@ -6,7 +6,7 @@
  */
 import { SimpleBot } from '@hamsters/ai';
 import { BALANCE, getMap } from '@hamsters/content';
-import { Simulation, hashState } from '@hamsters/core';
+import { garrisonOf, hashState, Simulation } from '@hamsters/core';
 import { generateDuelMap } from '@hamsters/levelgen';
 import { describe, expect, it } from 'vitest';
 import { BotRunner } from '../ai/botRunner';
@@ -38,7 +38,7 @@ function playOut(seed: number): MatchResult {
   while (sim.tick < TICK_LIMIT) {
     scheduler.advance(50);
     for (const planet of sim.state.planets) {
-      minGarrison = Math.min(minGarrison, planet.garrison);
+      minGarrison = Math.min(minGarrison, garrisonOf(planet));
     }
     const outcome = sim.outcome();
     if (outcome.finished) {

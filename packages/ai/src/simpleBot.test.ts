@@ -1,5 +1,5 @@
 import { BALANCE, getMap } from '@hamsters/content';
-import { Simulation } from '@hamsters/core';
+import { Simulation, setGarrison } from '@hamsters/core';
 import { describe, expect, it } from 'vitest';
 import { SimpleBot } from './simpleBot';
 
@@ -35,7 +35,7 @@ describe('SimpleBot («Боец»)', () => {
     const sim = arena();
     const home = sim.state.planets[0];
     if (!home) throw new Error('нет дома');
-    home.garrison = 3000;
+    setGarrison(home, 3000);
 
     const bot = new SimpleBot(BALANCE);
     const commands = bot.decide(sim.state, 0);
@@ -68,7 +68,7 @@ describe('SimpleBot («Боец»)', () => {
     const sim = arena();
     for (const planet of sim.state.planets) {
       if (planet.ownerId === 0) continue;
-      planet.garrison = 400_000;
+      setGarrison(planet, 400_000);
     }
 
     const bot = new SimpleBot(BALANCE);

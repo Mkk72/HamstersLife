@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { troopTotal } from './troops';
 import { testBalance } from './__fixtures__/balance';
 import { mapFour, mapThree } from './__fixtures__/maps';
 import { applyCommand } from './commands';
-import { createGameState, getPlanet } from './state';
+import { createGameState, garrisonOfPlanet, getPlanet, setGarrison } from './state';
 import type { Command } from './types';
 
 function freshMapThree() {
@@ -27,17 +28,19 @@ describe('SendFleet', () => {
     const result = applyCommand(state, command, testBalance);
 
     expect(result).toEqual({ ok: true, fleetIds: [1] });
-    expect(getPlanet(state, 0)?.garrison).toBe(0);
+    expect(garrisonOfPlanet(state, 0)).toBe(0);
     expect(state.fleets).toHaveLength(1);
     expect(state.fleets[0]).toMatchObject({
       id: 1,
       ownerId: 0,
       fromPlanetId: 0,
       toPlanetId: 1,
-      troops: 10_000,
       departTick: 0,
       arriveTick: 20,
     });
+    expect(troopTotal(state.fleets[0]!.troops)).toBe(10_000);
+    expect(state.routes).toHaveLength(1);
+    expect(state.routes[0]?.weightPermille).toBe(1000);
   });
 
   it('делит гарнизон по доле', () => {
@@ -47,8 +50,8 @@ describe('SendFleet', () => {
       { type: 'SendFleet', playerId: 0, fromPlanetIds: [0], toPlanetId: 1, ratio: 50 },
       testBalance,
     );
-    expect(getPlanet(state, 0)?.garrison).toBe(5000);
-    expect(state.fleets[0]?.troops).toBe(5000);
+    expect(garrisonOfPlanet(state, 0)).toBe(5000);
+    expect(troopTotal(state.fleets[0]!.troops)).toBe(5000);
   });
 
   it('отправляет с нескольких планет отдельными флотами', () => {
@@ -76,7 +79,7 @@ describe('SendFleet', () => {
       testBalance,
     );
     expect(state.fleets).toHaveLength(1);
-    expect(getPlanet(state, 0)?.garrison).toBe(5000);
+    expect(garrisonOfPlanet(state, 0)).toBe(5000);
   });
 
   it('ускоряет флот под «Реактивными щеками»', () => {
@@ -152,7 +155,7 @@ describe('SendFleet', () => {
     const state = freshMapThree();
     const planet = getPlanet(state, 0);
     if (!planet) throw new Error('нет планеты');
-    planet.garrison = 1000;
+    setGarrison(planet, 1000);
     const result = applyCommand(
       state,
       { type: 'SendFleet', playerId: 0, fromPlanetIds: [0], toPlanetId: 1, ratio: 25 },
@@ -163,7 +166,7 @@ describe('SendFleet', () => {
     expect(state.fleets).toHaveLength(0);
     expect(state.routes).toHaveLength(1);
     expect(state.routes[0]?.weightPermille).toBe(250);
-    expect(getPlanet(state, 0)?.garrison).toBe(1000);
+    expect(garrisonOfPlanet(state, 0)).toBe(1000);
   });
 
   it('отказывает выбывшему игроку', () => {

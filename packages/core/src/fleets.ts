@@ -1,11 +1,12 @@
 /**
  * Запуск флота между планетами — общий помощник для команд и постоянных
- * маршрутов: одна формула времени полёта, один счётчик id.
+ * маршрутов: одна формула времени полёта, один счётчик id. Отряд несёт состав,
+ * а не одно число.
  */
 import { distance, flightTicks } from './flight';
 import { speedUnitsPerSecond } from './modifiers';
-import type { Balance, Fleet, GameState, Planet } from './types';
-import type { MilliUnits } from './units';
+import { troopTotal } from './troops';
+import type { Balance, Fleet, GameState, Planet, TroopStack } from './types';
 
 export function launchFleet(
   state: GameState,
@@ -13,10 +14,10 @@ export function launchFleet(
   ownerId: number,
   from: Planet,
   toPlanetId: number,
-  troops: MilliUnits,
+  troops: TroopStack,
 ): Fleet | null {
   const target = state.planets[toPlanetId];
-  if (!target || troops <= 0) return null;
+  if (!target || troopTotal(troops) <= 0) return null;
 
   const speed = speedUnitsPerSecond(from, state.tick, balance);
   const ticks = flightTicks(distance(from.x, from.y, target.x, target.y), speed);

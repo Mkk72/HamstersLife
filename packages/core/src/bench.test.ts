@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { testBalance } from './__fixtures__/balance';
+import { createTroopStack } from './troops';
 import { Simulation } from './simulation';
 import type { MapDefinition } from './types';
 
@@ -32,7 +33,7 @@ describe('производительность тика', () => {
         ownerId: index % 2,
         fromPlanetId: index % 40,
         toPlanetId: (index + 7) % 40,
-        troops: 1000,
+        troops: createTroopStack({ swordsman: 1000 }),
         departTick: 0,
         arriveTick: 10_000,
       });

@@ -7,6 +7,7 @@
  */
 import type { GameState } from './types';
 import { BOOST_KINDS } from './types';
+import { TROOP_KINDS } from './troops';
 
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
@@ -33,7 +34,7 @@ export function hashState(state: GameState): number {
   for (const planet of state.planets) {
     hash = mix(hash, planet.id);
     hash = mix(hash, planet.ownerId);
-    hash = mix(hash, planet.garrison);
+    for (const kind of TROOP_KINDS) hash = mix(hash, planet.troops[kind]);
     hash = mix(hash, planet.defensePermille);
     for (const kind of BOOST_KINDS) hash = mix(hash, planet.boosts[kind] ?? 0);
   }
@@ -43,7 +44,7 @@ export function hashState(state: GameState): number {
     hash = mix(hash, fleet.ownerId);
     hash = mix(hash, fleet.fromPlanetId);
     hash = mix(hash, fleet.toPlanetId);
-    hash = mix(hash, fleet.troops);
+    for (const kind of TROOP_KINDS) hash = mix(hash, fleet.troops[kind]);
     hash = mix(hash, fleet.departTick);
     hash = mix(hash, fleet.arriveTick);
   }
@@ -54,7 +55,7 @@ export function hashState(state: GameState): number {
     hash = mix(hash, route.fromPlanetId);
     hash = mix(hash, route.toPlanetId);
     hash = mix(hash, route.weightPermille);
-    hash = mix(hash, route.pending);
+    for (const kind of TROOP_KINDS) hash = mix(hash, route.pending[kind]);
   }
 
   for (const player of state.players) {

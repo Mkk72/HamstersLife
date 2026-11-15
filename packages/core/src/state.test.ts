@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { testBalance } from './__fixtures__/balance';
 import { mapFour, mapThree } from './__fixtures__/maps';
-import { createGameState, getPlanet, hasForces, MapValidationError } from './state';
+import { createGameState, garrisonOfPlanet, getPlanet, hasForces, MapValidationError } from './state';
 import { NEUTRAL_OWNER } from './types';
 
 describe('createGameState', () => {
@@ -19,9 +19,9 @@ describe('createGameState', () => {
 
   it('переводит гарнизон карты в milli-единицы', () => {
     const state = createGameState(mapThree, testBalance, 1);
-    expect(getPlanet(state, 0)?.garrison).toBe(10_000);
+    expect(garrisonOfPlanet(state, 0)).toBe(10_000);
     expect(getPlanet(state, 1)?.ownerId).toBe(NEUTRAL_OWNER);
-    expect(getPlanet(state, 1)?.garrison).toBe(5000);
+    expect(garrisonOfPlanet(state, 1)).toBe(5000);
   });
 
   it('ставит защиту 1.0 по умолчанию', () => {

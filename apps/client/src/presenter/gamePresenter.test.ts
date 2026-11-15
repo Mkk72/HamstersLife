@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE, CONTENT, getMap } from '@hamsters/content';
-import { Simulation } from '@hamsters/core';
+import { Simulation, garrisonOf, troopTotal } from '@hamsters/core';
 import type { BoostKind, Command, CommandResult, GameState, PlanetId, SimSource } from '@hamsters/core';
 import type { BoardView, GameView, QualityLevel } from './viewModel';
 import { GamePresenter } from './gamePresenter';
@@ -170,14 +170,14 @@ describe('отправка флота', () => {
     const { presenter, source } = setup();
     const home = source.sim.state.planets[0];
     if (!home) throw new Error('нет планеты');
-    const expected = Math.floor((home.garrison * 25) / 100);
+    const expected = Math.floor((garrisonOf(home) * 25) / 100);
 
     presenter.setRatio(25);
     expect(presenter.ratio).toBe(25);
     presenter.pointerDown(0);
     presenter.pointerHover(8);
     presenter.pointerUp();
-    expect(source.sim.state.fleets[0]?.troops).toBe(expected);
+    expect(troopTotal(source.sim.state.fleets[0]!.troops)).toBe(expected);
   });
 
   it('строит стрелку с временем полёта при наведении', () => {

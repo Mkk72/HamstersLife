@@ -12,6 +12,7 @@ import {
   defenseForce,
   defensePermille,
   distance,
+  garrisonOf,
   type Balance,
   type Bot,
   type Command,
@@ -103,14 +104,14 @@ export class SimpleBot implements Bot {
   #decideAttack(state: Readonly<GameState>, playerId: PlayerId): Command | null {
     const own = state.planets
       .filter((planet) => planet.ownerId === playerId)
-      .filter((planet) => planet.garrison >= this.#options.minAttackGarrison);
+      .filter((planet) => garrisonOf(planet) >= this.#options.minAttackGarrison);
     if (own.length === 0) return null;
 
     const candidates = state.planets
       .filter((planet) => planet.ownerId !== playerId)
       .map((target) => {
         const force = defenseForce(
-          target.garrison,
+          garrisonOf(target),
           defensePermille(target, state.tick, this.#balance),
         );
         const value = SIZE_VALUE[target.size] * (target.ownerId === -1 ? 1.2 : 1.5);
@@ -132,7 +133,7 @@ export class SimpleBot implements Bot {
       for (const source of byDistance) {
         if (troops > need) break;
         sources.push(source);
-        troops += Math.floor((source.garrison * this.#options.attackRatio) / 100);
+        troops += Math.floor((garrisonOf(source) * this.#options.attackRatio) / 100);
       }
 
       if (troops <= need || sources.length === 0) continue;

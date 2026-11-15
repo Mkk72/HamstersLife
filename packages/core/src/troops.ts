@@ -68,3 +68,44 @@ export function splitTroops(stack: TroopStack, amount: MilliUnits): TroopStack {
   }
   return part;
 }
+
+/**
+ * Пересчитать состав на точное количество, сохранив пропорции.
+ *
+ * В отличие от `scaleTroops`, сумма результата ровно `targetTotal`: остаток
+ * раздаётся по крупнейшему остатку, поэтому потери массы при округлении нет.
+ * Если состава не было, всё становится базовыми бойцами (мечниками).
+ */
+export function resizeTroops(stack: TroopStack, targetTotal: MilliUnits): TroopStack {
+  if (targetTotal <= 0) return createTroopStack();
+
+  const total = troopTotal(stack);
+  if (total <= 0) return createTroopStack({ swordsman: targetTotal });
+
+  const parts = TROOP_KINDS.map((kind, index) => {
+    const exact = stack[kind] * targetTotal;
+    return {
+      kind,
+      index,
+      share: Math.floor(exact / total),
+      remainder: exact % total,
+    };
+  });
+
+  let assigned = parts.reduce((sum, part) => sum + part.share, 0);
+  let left = targetTotal - assigned;
+
+  parts.sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  let cursor = 0;
+  while (left > 0) {
+    const part = parts[cursor % parts.length];
+    if (!part) break;
+    part.share += 1;
+    left -= 1;
+    cursor += 1;
+  }
+
+  const resized = createTroopStack();
+  for (const part of parts) resized[part.kind] = part.share;
+  return resized;
+}

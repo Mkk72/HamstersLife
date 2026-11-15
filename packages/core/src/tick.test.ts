@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { troopTotal } from './troops';
 import { testBalance } from './__fixtures__/balance';
 import { mapFour, mapThree } from './__fixtures__/maps';
 import { applyCommand } from './commands';
-import { createGameState, getPlanet } from './state';
+import { createGameState, garrisonOf, garrisonOfPlanet, getPlanet, setGarrison } from './state';
 import { evaluateOutcome, runTicks, step } from './tick';
 
 describe('производство и семечки', () => {
@@ -10,8 +11,8 @@ describe('производство и семечки', () => {
     const state = createGameState(mapThree, testBalance, 3);
     runTicks(state, testBalance, 10);
     // M: 1000/с → 50 за тик
-    expect(getPlanet(state, 0)?.garrison).toBe(10_500);
-    expect(getPlanet(state, 1)?.garrison).toBe(5000);
+    expect(garrisonOfPlanet(state, 0)).toBe(10_500);
+    expect(garrisonOfPlanet(state, 1)).toBe(5000);
     expect(state.tick).toBe(10);
   });
 
@@ -19,8 +20,8 @@ describe('производство и семечки', () => {
     const state = createGameState(mapFour, testBalance, 3);
     runTicks(state, testBalance, 100);
     // S: 600/с → 30 за тик, вместимость 6000, старт 5000
-    expect(getPlanet(state, 1)?.garrison).toBe(6000);
-    expect(getPlanet(state, 0)?.garrison).toBe(12_000);
+    expect(garrisonOfPlanet(state, 1)).toBe(6000);
+    expect(garrisonOfPlanet(state, 0)).toBe(12_000);
   });
 
   it('капает семечки с каждой своей планеты', () => {
@@ -45,14 +46,14 @@ describe('захват и оборона', () => {
 
     const target = getPlanet(state, 1);
     expect(target?.ownerId).toBe(0);
-    expect(target?.garrison).toBe(5000);
+    expect(target ? garrisonOf(target) : undefined).toBe(5000);
     // вся продукция уходит в маршрут: гарнизон остаётся нулевым,
     // к 20-му тику маршрут накопил 1000 mH и выпустил отряд;
     // при захвате планеты маршрут на неё сгорает, а отряд остаётся в полёте
-    expect(getPlanet(state, 0)?.garrison).toBe(0);
+    expect(garrisonOfPlanet(state, 0)).toBe(0);
     expect(state.routes).toHaveLength(0);
     expect(state.fleets).toHaveLength(1);
-    expect(state.fleets[0]?.troops).toBe(1000);
+    expect(troopTotal(state.fleets[0]!.troops)).toBe(1000);
   });
 
   it('складывает гарнизон при подкреплении своей планеты', () => {
@@ -66,7 +67,7 @@ describe('захват и оборона', () => {
     runTicks(state, testBalance, 20);
 
     // 5000 + 30 × 20 = 5600, затем + 10 000 подкрепления сверх вместимости
-    expect(getPlanet(state, 1)?.garrison).toBe(15_600);
+    expect(garrisonOfPlanet(state, 1)).toBe(15_600);
   });
 
   it('уничтожает равные одновременные флоты — планета остаётся нейтральной', () => {
@@ -86,7 +87,7 @@ describe('захват и оборона', () => {
 
     const target = getPlanet(state, 3);
     expect(target?.ownerId).toBe(-1);
-    expect(target?.garrison).toBe(5000);
+    expect(target ? garrisonOf(target) : undefined).toBe(5000);
   });
 
   it('побеждает сильнейший из одновременных, затем упирается в гарнизон', () => {
@@ -107,7 +108,7 @@ describe('захват и оборона', () => {
     const target = getPlanet(state, 3);
     // 10 000 против 5000 → у атакующего остаётся 5000, ровно столько же в гарнизоне
     expect(target?.ownerId).toBe(-1);
-    expect(target?.garrison).toBe(0);
+    expect(target ? garrisonOf(target) : undefined).toBe(0);
   });
 
   it('«Ореховая скорлупа» спасает планету от превосходящего отряда', () => {
@@ -128,7 +129,7 @@ describe('захват и оборона', () => {
     const planet = getPlanet(state, 0);
     expect(planet?.ownerId).toBe(0);
     // гарнизон дорос до 12 000, защита ×1.8 = 21 600; остаток (21 600 − 10 000) / 1.8
-    expect(planet?.garrison).toBe(6444);
+    expect(planet ? garrisonOf(planet) : undefined).toBe(6444);
   });
 
   it('без буста тот же штурм заканчивается иначе', () => {
@@ -143,14 +144,14 @@ describe('захват и оборона', () => {
 
     const planet = getPlanet(state, 0);
     expect(planet?.ownerId).toBe(0);
-    expect(planet?.garrison).toBe(2000);
+    expect(planet ? garrisonOf(planet) : undefined).toBe(2000);
   });
 
   it('снимает бусты с захваченной планеты', () => {
     const state = createGameState(mapFour, testBalance, 3);
     const target = getPlanet(state, 2);
     if (!target) throw new Error('нет планеты');
-    target.garrison = 1000;
+    setGarrison(target, 1000);
     applyCommand(
       state,
       { type: 'ApplyBoost', playerId: 1, planetId: 2, boost: 'production' },

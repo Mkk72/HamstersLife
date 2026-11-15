@@ -5,6 +5,7 @@ import {
   createTroopStack,
   isEmptyTroops,
   mergeTroops,
+  resizeTroops,
   scaleTroops,
   splitTroops,
   subtractTroops,
@@ -68,5 +69,22 @@ describe('TroopStack', () => {
     const copy = cloneTroops(stack);
     copy.swordsman = 5000;
     expect(stack.swordsman).toBe(1000);
+  });
+
+  it('resizeTroops сохраняет точную сумму и пропорции', () => {
+    const stack = createTroopStack({ swordsman: 2000, archer: 1000 });
+    const half = resizeTroops(stack, 1500);
+    expect(troopTotal(half)).toBe(1500);
+    expect(half.swordsman).toBe(1000);
+    expect(half.archer).toBe(500);
+
+    const odd = resizeTroops(stack, 7);
+    expect(troopTotal(odd)).toBe(7);
+  });
+
+  it('resizeTroops из пустого состава делает базовых бойцов', () => {
+    const resized = resizeTroops(createTroopStack(), 1234);
+    expect(resized.swordsman).toBe(1234);
+    expect(troopTotal(resized)).toBe(1234);
   });
 });

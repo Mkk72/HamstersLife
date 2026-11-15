@@ -4,10 +4,12 @@
  * Правило: id планет — плотные от 0 до n−1, массив планет индексируется по id.
  * Это даёт прямой доступ без Map и одинаковый порядок обхода (важно для хэша).
  */
-import type { Balance, GameState, MapDefinition, Planet, PlayerState } from './types';
+import type { Balance, GameState, MapDefinition, Planet, PlanetId, PlayerState } from './types';
 import { createBoosts } from './boosts';
+import { createTroopStack, troopTotal } from './troops';
 import { NEUTRAL_OWNER } from './types';
 import { HAMSTER, PERMILLE } from './units';
+import type { MilliUnits } from './units';
 
 export class MapValidationError extends Error {
   constructor(message: string) {
@@ -61,7 +63,7 @@ export function createGameState(map: MapDefinition, balance: Balance, seed: numb
       y: planet.y,
       defensePermille: planet.defensePermille ?? PERMILLE,
       ownerId: planet.ownerId,
-      garrison: planet.garrisonHamsters * HAMSTER,
+      troops: createTroopStack({ swordsman: planet.garrisonHamsters * HAMSTER }),
       boosts: createBoosts(),
     }));
 
@@ -101,4 +103,25 @@ export function hasForces(state: GameState, playerId: number): boolean {
     state.planets.some((planet) => planet.ownerId === playerId) ||
     state.fleets.some((fleet) => fleet.ownerId === playerId)
   );
+}
+
+/** Численность гарнизона планеты — суммарно по родам войск. */
+export function garrisonOf(planet: Planet): MilliUnits {
+  return troopTotal(planet.troops);
+}
+
+/** Численность гарнизона планеты по id (undefined, если планеты нет). */
+export function garrisonOfPlanet(state: GameState, planetId: PlanetId): MilliUnits | undefined {
+  const planet = state.planets[planetId];
+  return planet ? troopTotal(planet.troops) : undefined;
+}
+
+/** Численность отряда. */
+export function fleetTroops(fleet: { troops: Planet['troops'] }): MilliUnits {
+  return troopTotal(fleet.troops);
+}
+
+/** Поставить гарнизон как базовых бойцов (мечников) — для тестов и сценариев. */
+export function setGarrison(planet: Planet, total: MilliUnits): void {
+  planet.troops = createTroopStack({ swordsman: total });
 }
