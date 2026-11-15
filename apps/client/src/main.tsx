@@ -37,10 +37,12 @@ await app.init({
 app.canvas.classList.add('scene');
 host.appendChild(app.canvas);
 
+const params = new URLSearchParams(window.location.search);
+
 const [board, setBoard] = createSignal<BoardView | null>(null);
 const [ratio, setRatio] = createSignal<Ratio>(50);
 const [quality, setQuality] = createSignal<QualityLevel>('high');
-const [mapChoice, setMapChoice] = createSignal('arena-duel');
+const [mapChoice, setMapChoice] = createSignal(params.get('map') ?? 'arena-duel');
 const [started, setStarted] = createSignal(false);
 const [audioEnabled, setAudioEnabled] = createSignal(true);
 
@@ -48,28 +50,53 @@ const scene = new GameScene(app, getMap(CONTENT.defaultMapName), {
   onBoard: (view) => setBoard(view),
 });
 
-// Worker включается флагом ?worker=1: по умолчанию считаем в главном потоке,
-// пока планет мало; переключение не меняет ни презентер, ни HUD.
-const useWorker = new URLSearchParams(window.location.search).has('worker');
+// Флаги для проверок: ?worker=1 — считать в Worker, ?stress=1 — карта на 40 планет
+// и 300 флотов в полёте (дымовая проверка бюджета кадра).
+const useWorker = params.has('worker');
+const stressMode = params.has('stress');
 
 let presenter: GamePresenter | null = null;
-let botRunner: BotRunner | null = null;
+let bots: BotRunner[] = [];
 let recorder: MatchRecorder | null = null;
 let matchCounter = 0;
 
 function mapFor(choice: string, seed: number): MapDefinition {
+  if (choice === 'three') return generateDuelMap(seed, { playerCount: 4 });
+  if (stressMode) return generateDuelMap(seed, { neutralPairs: 18 });
   return choice === 'random' ? generateDuelMap(seed) : getMap(CONTENT.defaultMapName);
+}
+
+/** Нагрузочный режим: 300 флотов в полёте, чтобы проверить отрисовку глазами. */
+function injectStressFleets(sim: Simulation): void {
+  const planets = sim.state.planets;
+  if (planets.length === 0) return;
+  for (let index = 0; index < 300; index += 1) {
+    const from = planets[index % planets.length];
+    const to = planets[(index * 7 + 3) % planets.length];
+    if (!from || !to) continue;
+    sim.state.fleets.push({
+      id: 100_000 + index,
+      ownerId: index % 2,
+      fromPlanetId: from.id,
+      toPlanetId: to.id,
+      troops: 500,
+      departTick: 0,
+      arriveTick: 1_000_000,
+    });
+  }
 }
 
 function startMatch(choice: string = mapChoice()): void {
   presenter?.stop();
-  botRunner?.stop();
+  for (const bot of bots) bot.stop();
+  bots = [];
   matchCounter += 1;
   const seed = matchCounter * 7919 + (Date.now() % 1000);
   const map = mapFor(choice, seed);
   scene.setMap(map);
 
   const sim = new Simulation(map, CONTENT.balance, seed);
+  if (stressMode && !useWorker) injectStressFleets(sim);
   recorder = new MatchRecorder({
     rulesVersion: CONTENT.balance.rulesVersion,
     contentVersion: CONTENT.balance.contentVersion,
@@ -93,8 +120,16 @@ function startMatch(choice: string = mapChoice()): void {
   presenter.setQuality(quality());
   presenter.start();
 
-  botRunner = new BotRunner(source, new SimpleBot(CONTENT.balance), 1, new BrowserScheduler());
-  botRunner.start();
+  for (let playerId = 1; playerId < map.playerCount; playerId += 1) {
+    const runner = new BotRunner(
+      source,
+      new SimpleBot(CONTENT.balance),
+      playerId,
+      new BrowserScheduler(),
+    );
+    runner.start();
+    bots.push(runner);
+  }
   setStarted(true);
 }
 

@@ -7,6 +7,7 @@
 import { SimpleBot } from '@hamsters/ai';
 import { BALANCE, getMap } from '@hamsters/content';
 import { Simulation, hashState } from '@hamsters/core';
+import { generateDuelMap } from '@hamsters/levelgen';
 import { describe, expect, it } from 'vitest';
 import { BotRunner } from '../ai/botRunner';
 import { LocalSimSource } from '../sim/localSimSource';
@@ -73,5 +74,28 @@ describe('матч ботов до результата', () => {
     const result = playOut(5);
     expect(result.ticks).toBeGreaterThan(20 * 5);
     expect(result.ticks).toBeLessThan(TICK_LIMIT);
+  });
+
+  it('1×3: четыре игрока, трое ботов — партия заканчивается', () => {
+    const map = generateDuelMap(21, { playerCount: 4 });
+    const scheduler = new ManualScheduler();
+    const sim = new Simulation(map, BALANCE, 21);
+    const source = new LocalSimSource(sim, scheduler);
+    const bots = [1, 2, 3].map(
+      (playerId) => new BotRunner(source, new SimpleBot(BALANCE), playerId, scheduler, 500),
+    );
+
+    source.start(() => undefined);
+    for (const bot of bots) bot.start();
+
+    let ticks = 0;
+    while (sim.tick < TICK_LIMIT) {
+      scheduler.advance(50);
+      ticks = sim.tick;
+      if (sim.outcome().finished) break;
+    }
+
+    expect(ticks).toBeLessThan(TICK_LIMIT);
+    expect(sim.outcome().finished).toBe(true);
   });
 });

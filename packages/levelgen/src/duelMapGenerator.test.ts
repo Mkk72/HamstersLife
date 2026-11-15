@@ -59,4 +59,44 @@ describe('DuelMapGenerator', () => {
     expect(map.width).toBe(800);
     expect(map.planets).toHaveLength(3 + 2 * 2);
   });
+
+  it('строит карту на четверых с четырьмя стартами', () => {
+    const map = generateDuelMap(77, { playerCount: 4 });
+    expect(map.playerCount).toBe(4);
+    expect(map.name).toBe('four-77');
+    const owners = new Map<number, number>();
+    for (const planet of map.planets) {
+      if (planet.ownerId === -1) continue;
+      owners.set(planet.ownerId, (owners.get(planet.ownerId) ?? 0) + 1);
+    }
+    expect([...owners.keys()].sort()).toEqual([0, 1, 2, 3]);
+    expect(map.planets).toHaveLength(5 + 5 * 4);
+  });
+
+  it('карта на четверых симметрична по обеим осям', () => {
+    const map = generateDuelMap(123, { playerCount: 4 });
+    for (const planet of map.planets) {
+      for (const mirror of [
+        { x: map.width - planet.x, y: planet.y },
+        { x: planet.x, y: map.height - planet.y },
+        { x: map.width - planet.x, y: map.height - planet.y },
+      ]) {
+        const found = map.planets.find(
+          (candidate) => candidate.x === mirror.x && candidate.y === mirror.y,
+        );
+        expect(found, `нет зеркала для ${planet.id}`).toBeDefined();
+        if (!found) continue;
+        expect(found.size).toBe(planet.size);
+        expect(found.garrisonHamsters).toBe(planet.garrisonHamsters);
+      }
+    }
+  });
+
+  it('карта на четверых принимается ядром на 100 seed', () => {
+    for (let seed = 0; seed < 100; seed += 1) {
+      const map = generateDuelMap(seed, { playerCount: 4 });
+      expect(() => mapDefinitionSchema.parse(map)).not.toThrow();
+      expect(() => createGameState(map, BALANCE, seed)).not.toThrow();
+    }
+  });
 });

@@ -15,6 +15,7 @@ const QUALITIES: readonly { value: QualityLevel; label: string }[] = [
 const MAP_OPTIONS: readonly { value: string; label: string }[] = [
   { value: 'arena-duel', label: 'Арена' },
   { value: 'random', label: 'Случайная' },
+  { value: 'three', label: '1×3' },
 ];
 
 const BOOST_LABEL: Readonly<Record<BoostKind, string>> = {

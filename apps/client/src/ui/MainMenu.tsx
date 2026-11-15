@@ -3,6 +3,7 @@ import { For } from 'solid-js';
 const MAP_OPTIONS: readonly { value: string; label: string; hint: string }[] = [
   { value: 'arena-duel', label: 'Арена', hint: 'ручная карта, 13 планет' },
   { value: 'random', label: 'Случайная', hint: 'симметричная, по seed' },
+  { value: 'three', label: '1×3', hint: 'четыре игрока, все против всех' },
 ];
 
 export interface MainMenuProps {
