@@ -1,4 +1,6 @@
 import type { BoostKind, Ratio, TroopKind } from '@hamsters/core';
+import { BOT_PRESETS } from '@hamsters/ai';
+import type { BotDifficulty } from '@hamsters/ai';
 import { Show, createSignal, onCleanup } from 'solid-js';
 import type { Application } from 'pixi.js';
 import type { BoardView, QualityLevel } from '../presenter/viewModel';
@@ -12,6 +14,7 @@ export interface AppProps {
   readonly ratio: () => Ratio;
   readonly quality: () => QualityLevel;
   readonly mapChoice: () => string;
+  readonly difficulty: () => BotDifficulty;
   readonly started: () => boolean;
   readonly audioEnabled: () => boolean;
   readonly speed: () => number;
@@ -21,6 +24,7 @@ export interface AppProps {
   readonly onComposition: (id: string) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
+  readonly onDifficulty: (difficulty: BotDifficulty) => void;
   readonly onSpeed: (speed: number) => void;
   readonly onTogglePause: () => void;
   readonly onStart: () => void;
@@ -45,7 +49,13 @@ export function App(props: AppProps) {
       <Show
         when={props.started()}
         fallback={
-          <MainMenu mapChoice={props.mapChoice} onMap={props.onMap} onStart={props.onStart} />
+          <MainMenu
+            mapChoice={props.mapChoice}
+            difficulty={props.difficulty}
+            onMap={props.onMap}
+            onDifficulty={props.onDifficulty}
+            onStart={props.onStart}
+          />
         }
       >
         <GameHud
@@ -54,6 +64,7 @@ export function App(props: AppProps) {
           quality={props.quality}
           fps={fps}
           mapChoice={props.mapChoice}
+          difficulty={() => BOT_PRESETS[props.difficulty()].label}
           audioEnabled={props.audioEnabled}
           speed={props.speed}
           onRatio={props.onRatio}

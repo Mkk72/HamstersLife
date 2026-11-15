@@ -34,6 +34,7 @@ export interface GameHudProps {
   readonly quality: () => QualityLevel;
   readonly fps: () => number;
   readonly mapChoice: () => string;
+  readonly difficulty: () => string;
   readonly audioEnabled: () => boolean;
   readonly speed: () => number;
   readonly onRatio: (ratio: Ratio) => void;
@@ -72,7 +73,10 @@ export function GameHud(props: GameHudProps) {
               </span>
             </Show>
           </div>
-          <div class="clan">{hud()?.clanName}</div>
+          <div class="clan">
+            {hud()?.clanName}
+            <Show when={props.difficulty()}>{(label) => <> · {label()}</>}</Show>
+          </div>
         </div>
 
         <div class="control" title="Контроль карты">

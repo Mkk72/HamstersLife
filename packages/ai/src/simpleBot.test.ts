@@ -1,6 +1,7 @@
 import { BALANCE, getMap } from '@hamsters/content';
 import { Simulation, setGarrison } from '@hamsters/core';
 import { describe, expect, it } from 'vitest';
+import { BOT_PRESETS } from './presets';
 import { SimpleBot } from './simpleBot';
 
 function arena() {
@@ -128,5 +129,44 @@ describe('SimpleBot («Боец»)', () => {
         expect(sim.state.planets[id]?.ownerId).toBe(1);
       }
     }
+  });
+});
+
+describe('сложность бота', () => {
+  it('лёгкий не тренирует и не ставит бусты', () => {
+    const sim = arena();
+    const bot = new SimpleBot(BALANCE, BOT_PRESETS.easy.options);
+    const commands = bot.decide(sim.state, 1);
+    expect(commands.some((command) => command.type === 'TrainTroops')).toBe(false);
+    expect(commands.some((command) => command.type === 'ApplyBoost')).toBe(false);
+  });
+
+  it('лёгкий не нападает на игрока, пока есть нейтралы', () => {
+    const sim = arena();
+    // игрок 1 ослаблен, но нейтралы сильны: лёгкому некуда идти, кроме игрока
+    setGarrison(sim.state.planets[1]!, 1000);
+    for (const planet of sim.state.planets) {
+      if (planet.ownerId === -1) setGarrison(planet, 400_000);
+    }
+
+    const easy = new SimpleBot(BALANCE, BOT_PRESETS.easy.options);
+    const easyCommands = easy.decide(sim.state, 0);
+    expect(easyCommands.some((command) => command.type === 'SendFleet')).toBe(false);
+
+    const normal = new SimpleBot(BALANCE);
+    const normalCommands = normal.decide(sim.state, 0);
+    expect(normalCommands.some((command) => command.type === 'SendFleet')).toBe(true);
+  });
+
+  it('лёгкий идёт на игрока, когда нейтралов не осталось', () => {
+    const sim = arena();
+    for (const planet of sim.state.planets) {
+      if (planet.ownerId === -1) planet.ownerId = 1;
+    }
+    setGarrison(sim.state.planets[1]!, 1000);
+
+    const easy = new SimpleBot(BALANCE, BOT_PRESETS.easy.options);
+    const commands = easy.decide(sim.state, 0);
+    expect(commands.some((command) => command.type === 'SendFleet')).toBe(true);
   });
 });

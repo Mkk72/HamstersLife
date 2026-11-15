@@ -34,6 +34,10 @@ export interface SimpleBotOptions {
   readonly attackMargin?: number;
   readonly attackRatio?: Ratio;
   readonly useBoosts?: boolean;
+  /** Тренировать ли войска в казармах. */
+  readonly useTraining?: boolean;
+  /** Атаковать ли чужие планеты игроков (иначе только нейтралов). */
+  readonly targetPlayers?: boolean;
 }
 
 const DEFAULT_OPTIONS = {
@@ -42,6 +46,8 @@ const DEFAULT_OPTIONS = {
   attackMargin: 1.15,
   attackRatio: 75 as Ratio,
   useBoosts: true,
+  useTraining: true,
+  targetPlayers: true,
 } satisfies Required<SimpleBotOptions>;
 
 const SIZE_VALUE: Readonly<Record<Planet['size'], number>> = { S: 1, M: 2, L: 3, XL: 4 };
@@ -88,6 +94,7 @@ export class SimpleBot implements Bot {
    * «Колесо»: бот не должен съедать семечки, оставляя себя без бустов.
    */
   #decideTraining(state: Readonly<GameState>, playerId: PlayerId): Command | null {
+    if (!this.#options.useTraining) return null;
     const player = state.players[playerId];
     if (!player) return null;
     const own = state.planets.filter(
@@ -142,7 +149,15 @@ export class SimpleBot implements Bot {
       .filter((planet) => garrisonOf(planet) >= this.#options.minAttackGarrison);
     if (own.length === 0) return null;
 
-    const candidates = state.planets
+    const allTargets = state.planets.filter((planet) => planet.ownerId !== playerId);
+    const targets = this.#options.targetPlayers
+      ? allTargets
+      : allTargets.filter((planet) => planet.ownerId === -1);
+    // Если нейтралов не осталось, даже осторожный бот идёт на игрока.
+    const candidatesSource = targets.length > 0 ? targets : allTargets;
+
+    const candidates = candidatesSource
+      .filter((planet) => planet.ownerId !== playerId)
       .filter((planet) => planet.ownerId !== playerId)
       .map((target) => {
         const defender = state.players[target.ownerId];

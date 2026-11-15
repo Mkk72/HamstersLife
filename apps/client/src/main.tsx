@@ -1,5 +1,6 @@
 import { CONTENT, getMap } from '@hamsters/content';
-import { SimpleBot } from '@hamsters/ai';
+import { BOT_PRESETS, DEFAULT_DIFFICULTY, SimpleBot } from '@hamsters/ai';
+import type { BotDifficulty } from '@hamsters/ai';
 import { Simulation, createTroopStack } from '@hamsters/core';
 import type { BoostKind, MapDefinition, Ratio, TroopKind } from '@hamsters/core';
 import { generateDuelMap } from '@hamsters/levelgen';
@@ -43,6 +44,7 @@ const [board, setBoard] = createSignal<BoardView | null>(null);
 const [ratio, setRatio] = createSignal<Ratio>(50);
 const [quality, setQuality] = createSignal<QualityLevel>('high');
 const [mapChoice, setMapChoice] = createSignal(params.get('map') ?? 'arena-duel');
+const [difficulty, setDifficulty] = createSignal<BotDifficulty>(DEFAULT_DIFFICULTY);
 const [started, setStarted] = createSignal(false);
 const [audioEnabled, setAudioEnabled] = createSignal(true);
 const [speed, setSpeed] = createSignal(1);
@@ -121,12 +123,14 @@ function startMatch(choice: string = mapChoice()): void {
   presenter.setSpeed(speed());
   presenter.start();
 
+  const preset = BOT_PRESETS[difficulty()];
   for (let playerId = 1; playerId < map.playerCount; playerId += 1) {
     const runner = new BotRunner(
       source,
-      new SimpleBot(CONTENT.balance),
+      new SimpleBot(CONTENT.balance, preset.options),
       playerId,
       new BrowserScheduler(),
+      preset.intervalMs,
     );
     runner.setSpeed(speed());
     runner.start();
@@ -185,6 +189,7 @@ render(
       ratio={ratio}
       quality={quality}
       mapChoice={mapChoice}
+      difficulty={difficulty}
       started={started}
       audioEnabled={audioEnabled}
       speed={speed}
@@ -204,6 +209,7 @@ render(
         // В меню выбор только запоминается; в игре — начинается новый матч.
         if (started()) startMatch(choice);
       }}
+      onDifficulty={(value) => setDifficulty(value)}
       onSpeed={applySpeed}
       onTogglePause={togglePause}
       onStart={() => {

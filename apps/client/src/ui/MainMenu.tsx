@@ -1,14 +1,20 @@
 import { For } from 'solid-js';
 
+import { BOT_PRESETS } from '@hamsters/ai';
+import type { BotDifficulty } from '@hamsters/ai';
 const MAP_OPTIONS: readonly { value: string; label: string; hint: string }[] = [
   { value: 'arena-duel', label: 'Арена', hint: 'ручная карта, 13 планет' },
   { value: 'random', label: 'Случайная', hint: 'симметричная, по seed' },
   { value: 'three', label: '1×3', hint: 'четыре игрока, все против всех' },
 ];
 
+const DIFFICULTIES: readonly BotDifficulty[] = ['easy', 'normal', 'hard'];
+
 export interface MainMenuProps {
   readonly mapChoice: () => string;
+  readonly difficulty: () => BotDifficulty;
   readonly onMap: (choice: string) => void;
+  readonly onDifficulty: (difficulty: BotDifficulty) => void;
   readonly onStart: () => void;
 }
 
@@ -35,6 +41,22 @@ export function MainMenu(props: MainMenuProps) {
               >
                 <span class="menu__map-name">{option.label}</span>
                 <span class="menu__map-hint">{option.hint}</span>
+              </button>
+            )}
+          </For>
+        </div>
+
+        <div class="menu__difficulty" role="group" aria-label="Сложность бота">
+          <span class="menu__difficulty-label">Сложность:</span>
+          <For each={DIFFICULTIES}>
+            {(value) => (
+              <button
+                class="chip"
+                classList={{ 'chip--active': props.difficulty() === value }}
+                type="button"
+                onClick={() => props.onDifficulty(value)}
+              >
+                {BOT_PRESETS[value].label}
               </button>
             )}
           </For>
