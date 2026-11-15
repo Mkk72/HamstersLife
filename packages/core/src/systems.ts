@@ -5,7 +5,6 @@
  * контракт детерминизма, поэтому меняется только с повышением `rulesVersion`.
  */
 import { resolveBattle, resolveCapture } from './combat';
-import { MIN_FLEET_SIZE } from './combat';
 import { clearBoosts } from './boosts';
 import { launchFleet } from './fleets';
 import { defensePermille, productionPerTick, seedsPerTick } from './modifiers';
@@ -49,8 +48,12 @@ export const productionSystem: TickSystem = (state, context) => {
 
     const sumWeights = routes.reduce((sum, route) => sum + route.weightPermille, 0);
     let exported: number;
-    if (planet.garrison >= capacity) {
-      // Предел заполнен: уходит только генерация, накопленное подкрепление остаётся.
+    if (planet.garrison > capacity) {
+      // Излишек от подкреплений сбрасывается по стрелкам сверх генерации.
+      exported = produced + (planet.garrison - capacity);
+      planet.garrison = capacity;
+    } else if (planet.garrison === capacity) {
+      // Предел ровно заполнен: уходит только генерация.
       exported = produced;
     } else {
       exported = mulPermille(produced, Math.min(PERMILLE, sumWeights));
@@ -91,10 +94,11 @@ function distributeExported(
   for (const part of parts) part.route.pending += part.share;
 }
 
-/** Маршруты, накопившие хотя бы одного хомяка, выпускают отряд. */
+/** Маршруты, накопившие минимальный отряд, выпускают его. */
 function flushRoutes(state: GameState, context: TickContext): void {
+  const threshold = context.balance.minRouteFleet;
   for (const route of state.routes) {
-    if (route.pending < MIN_FLEET_SIZE) continue;
+    if (route.pending < threshold) continue;
     const from = state.planets[route.fromPlanetId];
     if (!from || from.ownerId !== route.ownerId) {
       route.pending = 0;

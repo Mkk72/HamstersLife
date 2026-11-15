@@ -23,4 +23,5 @@ export const testBalance: Balance = {
   },
   minCaptureGarrison: 1000,
   maxRoutesPerPlanet: 4,
+  minRouteFleet: 1000,
 };

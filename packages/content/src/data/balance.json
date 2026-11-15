@@ -16,5 +16,6 @@
     "defense": { "cost": 200000, "durationTicks": 240, "cooldownTicks": 600, "factorPermille": 1800 }
   },
   "minCaptureGarrison": 1000,
-  "maxRoutesPerPlanet": 4
+  "maxRoutesPerPlanet": 4,
+  "minRouteFleet": 1000
 }

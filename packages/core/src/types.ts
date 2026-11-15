@@ -109,6 +109,8 @@ export interface Balance {
   readonly minCaptureGarrison: MilliUnits;
   /** Сколько постоянных маршрутов можно держать с одной планеты. */
   readonly maxRoutesPerPlanet: number;
+  /** Минимальный накопленный отряд маршрута, после которого он вылетает. */
+  readonly minRouteFleet: MilliUnits;
 }
 
 /** Планета в описании карты: данные, а не состояние. */

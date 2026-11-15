@@ -41,6 +41,7 @@ export const balanceSchema = z.strictObject({
   }),
   minCaptureGarrison: z.number().int().positive(),
   maxRoutesPerPlanet: z.number().int().positive(),
+  minRouteFleet: z.number().int().positive(),
 });
 
 export const mapPlanetSchema = z.strictObject({

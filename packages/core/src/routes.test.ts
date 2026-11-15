@@ -125,9 +125,9 @@ describe('маршруты: поток производства', () => {
     expect(state.routes[0]?.pending).toBe(50);
   });
 
-  it('подкрепление сверх вместимости не вытекает в маршрут', () => {
+  it('излишек сверх вместимости сбрасывается по стрелкам', () => {
     const state = fresh();
-    send(state, [0], 3, 50); // маршрут с планеты 0
+    send(state, [0], 3, 50); // маршрут с планеты 0, первый отряд уже в полёте
     const planet = getPlanet(state, 0);
     if (!planet) throw new Error('нет планеты');
     const capacity = testBalance.planetSizes.M.capacity;
@@ -136,9 +136,12 @@ describe('маршруты: поток производства', () => {
     planet.garrison = capacity + 5000;
     step(state, testBalance);
 
-    // ушла только генерация (50 mH), весь излишек остался в гарнизоне
-    expect(planet.garrison).toBe(capacity + 5000);
-    expect(state.routes[0]?.pending).toBe(50);
+    // излишек 5000 + генерация 50 ушли в маршрут одним отрядом,
+    // гарнизон вернулся к пределу
+    expect(planet.garrison).toBe(capacity);
+    expect(state.routes[0]?.pending).toBe(0);
+    expect(state.fleets).toHaveLength(2);
+    expect(state.fleets[1]?.troops).toBe(5050);
   });
 
   it('без маршрутов излишек подкрепления тоже сохраняется', () => {
@@ -150,6 +153,20 @@ describe('маршруты: поток производства', () => {
     runTicks(state, testBalance, 10);
 
     expect(planet.garrison).toBe(testBalance.planetSizes.M.capacity + 7000);
+  });
+
+  it('порог выпуска отряда задаётся балансом', () => {
+    const balance: Balance = { ...testBalance, minRouteFleet: 500 };
+    const state = createGameState(mapFour, balance, 5);
+    applyCommand(
+      state,
+      { type: 'SendFleet', playerId: 0, fromPlanetIds: [0], toPlanetId: 3, ratio: 50 },
+      balance,
+    );
+
+    runTicks(state, balance, 20); // поток 25/тик → 500 mH
+
+    expect(state.fleets).toHaveLength(2); // первый отряд + отряд маршрута
   });
 
   it('без маршрутов производство копится до вместимости', () => {
