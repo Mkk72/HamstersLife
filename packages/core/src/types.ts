@@ -132,5 +132,5 @@ export type CommandErrorCode =
   | 'cooldown';
 
 export type CommandResult =
-  | { readonly ok: true; readonly fleetId?: FleetId }
+  | { readonly ok: true; readonly fleetIds?: readonly FleetId[] }
   | { readonly ok: false; readonly error: CommandErrorCode };

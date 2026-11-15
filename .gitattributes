@@ -1,0 +1,10 @@
+# Единый перевод строки: LF во всех текстовых файлах, чтобы Windows-агенты
+# не превращали файлы в CRLF и не создавали диффы на весь файл.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.mp3 binary
+*.ogg binary
+*.woff2 binary

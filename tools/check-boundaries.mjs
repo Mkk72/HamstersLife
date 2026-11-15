@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Проверка границ пакетов по компиляции и по импортам.
 // Запуск: node tools/check-boundaries.mjs
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
@@ -34,7 +34,10 @@ function normalize(p) {
 }
 
 for (const pkg of HEADLESS) {
-  const tsconfigPath = join(ROOT, pkg, 'tsconfig.json');
+  const pkgDir = join(ROOT, pkg);
+  if (!existsSync(pkgDir)) continue; // пакет ещё не заведён — проверять нечего
+
+  const tsconfigPath = join(pkgDir, 'tsconfig.json');
   let tsconfig;
   try {
     tsconfig = JSON.parse(readFileSync(tsconfigPath, 'utf8'));
