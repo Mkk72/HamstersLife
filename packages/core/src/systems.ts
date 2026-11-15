@@ -40,15 +40,18 @@ export const productionSystem: TickSystem = (state, context) => {
     );
 
     if (routes.length === 0) {
-      planet.garrison = Math.min(capacity, planet.garrison + produced);
+      // Производство не выходит за предел; излишек от подкреплений сохраняется.
+      if (planet.garrison < capacity) {
+        planet.garrison = Math.min(capacity, planet.garrison + produced);
+      }
       continue;
     }
 
     const sumWeights = routes.reduce((sum, route) => sum + route.weightPermille, 0);
     let exported: number;
     if (planet.garrison >= capacity) {
+      // Предел заполнен: уходит только генерация, накопленное подкрепление остаётся.
       exported = produced;
-      planet.garrison = capacity;
     } else {
       exported = mulPermille(produced, Math.min(PERMILLE, sumWeights));
       planet.garrison = Math.min(capacity, planet.garrison + produced - exported);

@@ -125,6 +125,33 @@ describe('маршруты: поток производства', () => {
     expect(state.routes[0]?.pending).toBe(50);
   });
 
+  it('подкрепление сверх вместимости не вытекает в маршрут', () => {
+    const state = fresh();
+    send(state, [0], 3, 50); // маршрут с планеты 0
+    const planet = getPlanet(state, 0);
+    if (!planet) throw new Error('нет планеты');
+    const capacity = testBalance.planetSizes.M.capacity;
+
+    // пришло подкрепление, гарнизон выше предела
+    planet.garrison = capacity + 5000;
+    step(state, testBalance);
+
+    // ушла только генерация (50 mH), весь излишек остался в гарнизоне
+    expect(planet.garrison).toBe(capacity + 5000);
+    expect(state.routes[0]?.pending).toBe(50);
+  });
+
+  it('без маршрутов излишек подкрепления тоже сохраняется', () => {
+    const state = createGameState(mapThree, testBalance, 5);
+    const planet = getPlanet(state, 0);
+    if (!planet) throw new Error('нет планеты');
+    planet.garrison = testBalance.planetSizes.M.capacity + 7000;
+
+    runTicks(state, testBalance, 10);
+
+    expect(planet.garrison).toBe(testBalance.planetSizes.M.capacity + 7000);
+  });
+
   it('без маршрутов производство копится до вместимости', () => {
     const state = createGameState(mapThree, testBalance, 5);
     runTicks(state, testBalance, 100);
