@@ -89,6 +89,8 @@ export interface HudView {
   readonly mine: number;
   readonly enemy: number;
   readonly neutral: number;
+  /** Название клана игрока. */
+  readonly clanName: string;
   readonly boosts: readonly BoostButtonView[];
   readonly training: readonly TrainingButtonView[];
   readonly outcome: OutcomeView | null;

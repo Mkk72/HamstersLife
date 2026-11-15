@@ -413,6 +413,7 @@ export class GamePresenter {
       mine: this.#guarded.mine.value,
       enemy: this.#guarded.enemy.value,
       neutral: this.#guarded.neutral.value,
+      clanName: me ? (this.#balance.clans[me.clanId]?.name ?? '') : '',
       boosts,
       training,
       outcome: outcome.finished

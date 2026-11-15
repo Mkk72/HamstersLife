@@ -19,7 +19,9 @@ export function launchFleet(
   const target = state.planets[toPlanetId];
   if (!target || troopTotal(troops) <= 0) return null;
 
-  const speed = speedUnitsPerSecond(from, state.tick, balance);
+  const owner = state.players[ownerId];
+  const clanSpeed = owner ? (balance.clans[owner.clanId]?.speedPermille ?? 1000) : 1000;
+  const speed = speedUnitsPerSecond(from, state.tick, balance, clanSpeed);
   const ticks = flightTicks(distance(from.x, from.y, target.x, target.y), speed);
   const fleet: Fleet = {
     id: state.nextFleetId,

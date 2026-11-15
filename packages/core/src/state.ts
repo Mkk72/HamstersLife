@@ -7,7 +7,7 @@
 import type { Balance, GameState, MapDefinition, Planet, PlanetId, PlayerState } from './types';
 import { createBoosts } from './boosts';
 import { createTroopStack, troopTotal } from './troops';
-import { NEUTRAL_OWNER } from './types';
+import { CLAN_IDS, NEUTRAL_OWNER } from './types';
 import { HAMSTER, PERMILLE } from './units';
 import type { MilliUnits } from './units';
 
@@ -70,6 +70,7 @@ export function createGameState(map: MapDefinition, balance: Balance, seed: numb
 
   const players: PlayerState[] = Array.from({ length: map.playerCount }, (_, id) => ({
     id,
+    clanId: CLAN_IDS[id % CLAN_IDS.length] ?? 'goldenCheeks',
     seeds: balance.startingSeeds,
     alive: true,
     boostCooldownUntilTick: { production: 0, speed: 0, defense: 0 },

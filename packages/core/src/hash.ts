@@ -6,7 +6,7 @@
  * массивов состояния, а он задаётся только правилами, не машиной.
  */
 import type { GameState } from './types';
-import { BOOST_KINDS } from './types';
+import { BOOST_KINDS, CLAN_IDS } from './types';
 import { TROOP_KINDS } from './troops';
 
 const FNV_OFFSET = 0x811c9dc5;
@@ -66,6 +66,7 @@ export function hashState(state: GameState): number {
 
   for (const player of state.players) {
     hash = mix(hash, player.id);
+    hash = mix(hash, CLAN_IDS.indexOf(player.clanId));
     hash = mix(hash, player.seeds);
     hash = mix(hash, player.alive ? 1 : 0);
     hash = mix(hash, player.boostCooldownUntilTick.production);

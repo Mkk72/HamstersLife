@@ -75,7 +75,14 @@ export const productionSystem: TickSystem = (state, context) => {
   for (const planet of state.planets) {
     if (planet.ownerId === NEUTRAL_OWNER) continue;
     const capacity = context.balance.planetSizes[planet.size].capacity;
-    const produced = productionPerTick(planet, context.tick, context.balance);
+    const owner = state.players[planet.ownerId];
+    const clanProduction = owner
+      ? (context.balance.clans[owner.clanId]?.productionPermille ?? 1000)
+      : 1000;
+    const produced = mulPermille(
+      productionPerTick(planet, context.tick, context.balance),
+      clanProduction,
+    );
     const routes = state.routes.filter(
       (route) => route.fromPlanetId === planet.id && route.ownerId === planet.ownerId,
     );
@@ -294,10 +301,14 @@ function resolveArrivals(
       continue;
     }
 
+    const defender = state.players[planet.ownerId];
+    const clanDefense = defender
+      ? (context.balance.clans[defender.clanId]?.defensePermille ?? 1000)
+      : 1000;
     const battle = resolveFieldBattle(
       incumbent.troops,
       planet.troops,
-      defensePermille(planet, context.tick, context.balance),
+      defensePermille(planet, context.tick, context.balance, clanDefense),
       context.balance,
     );
 

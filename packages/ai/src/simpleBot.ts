@@ -133,9 +133,13 @@ export class SimpleBot implements Bot {
     const candidates = state.planets
       .filter((planet) => planet.ownerId !== playerId)
       .map((target) => {
+        const defender = state.players[target.ownerId];
+        const clanDefense = defender
+          ? (this.#balance.clans[defender.clanId]?.defensePermille ?? 1000)
+          : 1000;
         const force = defenseForce(
           garrisonOf(target),
-          defensePermille(target, state.tick, this.#balance),
+          defensePermille(target, state.tick, this.#balance, clanDefense),
         );
         const value = SIZE_VALUE[target.size] * (target.ownerId === -1 ? 1.2 : 1.5);
         return { target, force, value };

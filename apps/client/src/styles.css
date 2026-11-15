@@ -81,6 +81,20 @@ body {
   font-weight: 600;
 }
 
+.top-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.clan {
+  padding-left: 8px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
 .seeds__icon {
   width: 16px;
   height: 16px;

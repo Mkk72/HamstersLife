@@ -309,6 +309,11 @@ describe('HUD', () => {
     expect(hud?.seeds).toBe(BALANCE.startingSeeds);
   });
 
+  it('показывает клан игрока', () => {
+    const { view } = setup();
+    expect(view.last?.hud.clanName).toBe(BALANCE.clans.goldenCheeks.name);
+  });
+
   it('подсказывает управление в начале партии', () => {
     const { view } = setup();
     expect(view.last?.hud.hint).toMatch(/Тяни стрелку/);

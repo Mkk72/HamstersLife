@@ -25,17 +25,32 @@ export function productionPerTick(planet: Planet, tick: number, balance: Balance
   return mulPermille(base, factorFor(planet, 'production', tick, balance));
 }
 
-/** Защита планеты в permille с учётом «Ореховой скорлупы». */
-export function defensePermille(planet: Planet, tick: number, balance: Balance): number {
-  return mulPermille(planet.defensePermille, factorFor(planet, 'defense', tick, balance));
+/** Защита планеты в permille с учётом «Ореховой скорлупы» и бонуса клана. */
+export function defensePermille(
+  planet: Planet,
+  tick: number,
+  balance: Balance,
+  clanDefensePermille = PERMILLE,
+): number {
+  const withBoost = mulPermille(
+    planet.defensePermille,
+    factorFor(planet, 'defense', tick, balance),
+  );
+  return mulPermille(withBoost, clanDefensePermille);
 }
 
-/** Скорость флота, вылетающего с планеты, в целых единицах карты за секунду. */
-export function speedUnitsPerSecond(planet: Planet, tick: number, balance: Balance): number {
-  return mulPermille(
+/** Скорость флота, вылетающего с планеты, с учётом буста и бонуса клана. */
+export function speedUnitsPerSecond(
+  planet: Planet,
+  tick: number,
+  balance: Balance,
+  clanSpeedPermille = PERMILLE,
+): number {
+  const withBoost = mulPermille(
     balance.flightSpeedUnitsPerSecond,
     factorFor(planet, 'speed', tick, balance),
   );
+  return mulPermille(withBoost, clanSpeedPermille);
 }
 
 /** Приток семечек за тик (одинаков для игроков с одинаковым числом планет). */

@@ -70,14 +70,17 @@ export function GameHud(props: GameHudProps) {
   return (
     <>
       <div class="hud hud--top">
-        <div class="seeds" title="Семечки">
-          <span class="seeds__icon" aria-hidden="true" />
-          <span class="seeds__value">{formatMilli(hud()?.seeds ?? 0, 0)}</span>
-          <Show when={hud()?.tampered}>
-            <span class="tamper" title="Защищённые значения изменены извне">
-              !
-            </span>
-          </Show>
+        <div class="top-left">
+          <div class="seeds" title="Семечки">
+            <span class="seeds__icon" aria-hidden="true" />
+            <span class="seeds__value">{formatMilli(hud()?.seeds ?? 0, 0)}</span>
+            <Show when={hud()?.tampered}>
+              <span class="tamper" title="Защищённые значения изменены извне">
+                !
+              </span>
+            </Show>
+          </div>
+          <div class="clan">{hud()?.clanName}</div>
         </div>
 
         <div class="control" title="Контроль карты">

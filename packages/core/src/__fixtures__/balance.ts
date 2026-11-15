@@ -41,9 +41,9 @@ export const testBalance: Balance = {
     mage: { name: 'Маг', role: 'support', attack: 700, defense: 600, speedPermille: 1000, range: 2, trainTicks: 120, costSeeds: 40_000, strongAgainst: ['swordsman', 'archer'], weakAgainst: ['cavalry'] },
   },
   clans: {
-    goldenCheeks: { name: 'Золотые Щёки', productionPermille: 1100, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
-    jungarian: { name: 'Джунгарские', productionPermille: 1000, defensePermille: 1000, speedPermille: 1100, spellCostPermille: 1000 },
-    syrian: { name: 'Сирийская Броня', productionPermille: 1000, defensePermille: 1100, speedPermille: 1000, spellCostPermille: 1000 },
-    darkRoborowski: { name: 'Тёмный Роборовски', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 900 },
+    goldenCheeks: { name: 'Золотые Щёки', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
+    jungarian: { name: 'Джунгарские', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
+    syrian: { name: 'Сирийская Броня', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
+    darkRoborowski: { name: 'Тёмный Роборовски', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
   },
 };
