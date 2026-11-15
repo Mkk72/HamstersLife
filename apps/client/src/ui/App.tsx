@@ -3,6 +3,7 @@ import { Show, createSignal, onCleanup } from 'solid-js';
 import type { Application } from 'pixi.js';
 import type { BoardView, QualityLevel } from '../presenter/viewModel';
 import { GameHud } from './GameHud';
+import { MainMenu } from './MainMenu';
 import { OutcomeOverlay } from './OutcomeOverlay';
 
 export interface AppProps {
@@ -11,10 +12,12 @@ export interface AppProps {
   readonly ratio: () => Ratio;
   readonly quality: () => QualityLevel;
   readonly mapChoice: () => string;
+  readonly started: () => boolean;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
+  readonly onStart: () => void;
   readonly onRestart: () => void;
   readonly onDownloadReplay: () => void;
 }
@@ -32,21 +35,28 @@ export function App(props: AppProps) {
 
   return (
     <>
-      <GameHud
-        board={props.board}
-        ratio={props.ratio}
-        quality={props.quality}
-        fps={fps}
-        mapChoice={props.mapChoice}
-        onRatio={props.onRatio}
-        onBoost={props.onBoost}
-        onQuality={props.onQuality}
-        onMap={props.onMap}
-        onRestart={props.onRestart}
-        onDownloadReplay={props.onDownloadReplay}
-      />
-      <Show when={props.board()?.hud.outcome}>
-        {(outcome) => <OutcomeOverlay outcome={outcome()} onRestart={props.onRestart} />}
+      <Show
+        when={props.started()}
+        fallback={
+          <MainMenu mapChoice={props.mapChoice} onMap={props.onMap} onStart={props.onStart} />
+        }
+      >
+        <GameHud
+          board={props.board}
+          ratio={props.ratio}
+          quality={props.quality}
+          fps={fps}
+          mapChoice={props.mapChoice}
+          onRatio={props.onRatio}
+          onBoost={props.onBoost}
+          onQuality={props.onQuality}
+          onMap={props.onMap}
+          onRestart={props.onRestart}
+          onDownloadReplay={props.onDownloadReplay}
+        />
+        <Show when={props.board()?.hud.outcome}>
+          {(outcome) => <OutcomeOverlay outcome={outcome()} onRestart={props.onRestart} />}
+        </Show>
       </Show>
     </>
   );

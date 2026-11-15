@@ -9,6 +9,7 @@ import { render } from 'solid-js/web';
 import { BotRunner } from './ai/botRunner';
 import { KeyboardInput } from './input/keyboardInput';
 import { PointerInput } from './input/pointerInput';
+import { WheelInput } from './input/wheelInput';
 import { GamePresenter } from './presenter/gamePresenter';
 import type { BoardView, QualityLevel } from './presenter/viewModel';
 import { GameScene } from './render/gameScene';
@@ -38,6 +39,7 @@ const [board, setBoard] = createSignal<BoardView | null>(null);
 const [ratio, setRatio] = createSignal<Ratio>(50);
 const [quality, setQuality] = createSignal<QualityLevel>('high');
 const [mapChoice, setMapChoice] = createSignal('arena-duel');
+const [started, setStarted] = createSignal(false);
 
 const scene = new GameScene(app, getMap(CONTENT.defaultMapName), {
   onBoard: (view) => setBoard(view),
@@ -81,6 +83,7 @@ function startMatch(choice: string = mapChoice()): void {
 
   botRunner = new BotRunner(source, new SimpleBot(CONTENT.balance), 1, new BrowserScheduler());
   botRunner.start();
+  setStarted(true);
 }
 
 function downloadReplay(): void {
@@ -106,6 +109,9 @@ const keyboard = new KeyboardInput(
 );
 keyboard.attach();
 
+const wheel = new WheelInput(app.canvas, () => presenter, (value) => setRatio(value));
+wheel.attach();
+
 render(
   () => (
     <App
@@ -114,6 +120,7 @@ render(
       ratio={ratio}
       quality={quality}
       mapChoice={mapChoice}
+      started={started}
       onRatio={(value) => {
         setRatio(value);
         presenter?.setRatio(value);
@@ -125,7 +132,12 @@ render(
       }}
       onMap={(choice) => {
         setMapChoice(choice);
-        startMatch(choice);
+        // В меню выбор только запоминается; в игре — начинается новый матч.
+        if (started()) startMatch(choice);
+      }}
+      onStart={() => {
+        scene.unlockAudio();
+        startMatch();
       }}
       onRestart={() => startMatch()}
       onDownloadReplay={downloadReplay}
@@ -133,5 +145,3 @@ render(
   ),
   host,
 );
-
-startMatch();

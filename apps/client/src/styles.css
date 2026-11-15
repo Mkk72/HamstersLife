@@ -330,3 +330,116 @@ body {
   color: var(--muted);
   font-size: 14px;
 }
+
+/* --- главное меню --- */
+
+.menu {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 30% 20%, rgba(42, 58, 106, 0.55), transparent 55%);
+}
+
+.menu__card {
+  width: min(560px, 100%);
+  padding: 34px 38px 28px;
+  border-radius: 24px;
+  background: var(--panel-strong);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.65);
+  text-align: center;
+}
+
+.menu__badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.menu__title {
+  margin: 14px 0 8px;
+  font-size: 42px;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+}
+
+.menu__tagline {
+  margin: 0 0 22px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.menu__maps {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.menu__map {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
+
+.menu__map--active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.35) inset;
+}
+
+.menu__map-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.menu__map-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.menu__start {
+  width: 100%;
+}
+
+.menu__controls {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid rgba(120, 150, 220, 0.18);
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  text-align: center;
+}
