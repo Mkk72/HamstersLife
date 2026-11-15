@@ -18,6 +18,8 @@ import { MatchRecorder } from './replay/matchRecorder';
 import { RecordingSimSource } from './replay/recordingSimSource';
 import { LocalSimSource } from './sim/localSimSource';
 import { BrowserScheduler } from './sim/scheduler';
+import SimWorker from './sim/simWorker?worker';
+import { WorkerSimSource } from './sim/workerSimSource';
 import { App } from './ui/App';
 import './styles.css';
 
@@ -45,6 +47,10 @@ const scene = new GameScene(app, getMap(CONTENT.defaultMapName), {
   onBoard: (view) => setBoard(view),
 });
 
+// Worker включается флагом ?worker=1: по умолчанию считаем в главном потоке,
+// пока планет мало; переключение не меняет ни презентер, ни HUD.
+const useWorker = new URLSearchParams(window.location.search).has('worker');
+
 let presenter: GamePresenter | null = null;
 let botRunner: BotRunner | null = null;
 let recorder: MatchRecorder | null = null;
@@ -69,7 +75,12 @@ function startMatch(choice: string = mapChoice()): void {
     seed,
     mapName: map.name,
   });
-  const source = new RecordingSimSource(new LocalSimSource(sim, new BrowserScheduler()), recorder);
+  const source = new RecordingSimSource(
+    useWorker
+      ? new WorkerSimSource(map, CONTENT.balance, seed, { create: () => new SimWorker() })
+      : new LocalSimSource(sim, new BrowserScheduler()),
+    recorder,
+  );
 
   presenter = new GamePresenter({
     sim: source,
@@ -145,3 +156,6 @@ render(
   ),
   host,
 );
+
+// ?play=1 — сразу в бой: удобно для скриншотов и дымовых проверок.
+if (new URLSearchParams(window.location.search).has('play')) startMatch();

@@ -53,6 +53,11 @@ export function GameHud(props: GameHudProps) {
         <div class="seeds" title="Семечки">
           <span class="seeds__icon" aria-hidden="true" />
           <span class="seeds__value">{formatMilli(hud()?.seeds ?? 0, 0)}</span>
+          <Show when={hud()?.tampered}>
+            <span class="tamper" title="Защищённые значения изменены извне">
+              !
+            </span>
+          </Show>
         </div>
 
         <div class="control" title="Контроль карты">
@@ -147,7 +152,8 @@ export function GameHud(props: GameHudProps) {
       </Show>
 
       <div class="fps">
-        <span class="fps__value">{props.fps() > 0 ? props.fps() : '—'}</span> FPS
+        <span class="fps__value">{props.fps() > 0 ? props.fps() : '—'}</span> FPS · тик{' '}
+        {props.board()?.tick ?? 0}
       </div>
     </>
   );

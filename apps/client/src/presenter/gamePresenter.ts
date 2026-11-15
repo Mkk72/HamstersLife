@@ -34,6 +34,7 @@ import type {
   PlanetView,
   QualityLevel,
 } from './viewModel';
+import { ProtectedInt } from '../security/protectedInt';
 
 export interface PresenterDeps {
   readonly sim: SimSource;
@@ -57,6 +58,15 @@ export class GamePresenter {
   #ratio: Ratio;
   #quality: QualityLevel = 'high';
   #running = false;
+  /** Значения HUD замаскированы: правка картинки извне видна по контрольной сумме. */
+  readonly #guarded = {
+    seeds: new ProtectedInt(),
+    mine: new ProtectedInt(),
+    enemy: new ProtectedInt(),
+    neutral: new ProtectedInt(),
+  };
+  #tampered = false;
+  #lastMaskTick = -1000;
 
   constructor(deps: PresenterDeps) {
     this.#sim = deps.sim;
@@ -302,17 +312,35 @@ export class GamePresenter {
 
     const outcome = evaluateOutcome(state);
 
+    this.#rotateMasks(tick);
+    this.#guarded.seeds.set(me?.seeds ?? 0);
+    this.#guarded.mine.set(mine);
+    this.#guarded.enemy.set(enemy);
+    this.#guarded.neutral.set(neutral);
+    if (Object.values(this.#guarded).some((guarded) => guarded.tampered)) {
+      this.#tampered = true;
+    }
+
     return {
-      seeds: me?.seeds ?? 0,
-      mine,
-      enemy,
-      neutral,
+      seeds: this.#guarded.seeds.value,
+      mine: this.#guarded.mine.value,
+      enemy: this.#guarded.enemy.value,
+      neutral: this.#guarded.neutral.value,
       boosts,
       outcome: outcome.finished
         ? { finished: true, winnerId: outcome.winnerId, youWon: outcome.winnerId === this.#playerId }
         : null,
       hint: this.#hint(state, mine, planetId),
+      tampered: this.#tampered,
     };
+  }
+
+  /** Раз в 5 секунд меняем ключ маскировки, перешифровав значения. */
+  #rotateMasks(tick: number): void {
+    if (tick - this.#lastMaskTick < 100) return;
+    this.#lastMaskTick = tick;
+    const mask = (Math.imul(tick + 1, 2654435761) ^ (this.#playerId + 1)) >>> 0;
+    for (const guarded of Object.values(this.#guarded)) guarded.rotate(mask);
   }
 
   #hint(state: GameState, mine: number, selected: PlanetId | null): string | null {

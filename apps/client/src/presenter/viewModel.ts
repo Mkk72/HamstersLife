@@ -71,6 +71,8 @@ export interface HudView {
   readonly boosts: readonly BoostButtonView[];
   readonly outcome: OutcomeView | null;
   readonly hint: string | null;
+  /** Обнаружена правка защищённых значений в клиенте. */
+  readonly tampered: boolean;
 }
 
 export interface BoardView {
