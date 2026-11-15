@@ -1,5 +1,6 @@
 export * from './units';
 export * from './types';
+export * from './troops';
 export * from './rng';
 export * from './boosts';
 export * from './combat';

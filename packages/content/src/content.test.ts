@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE, DEFAULT_MAP, MAPS, getMap } from './index';
-import { mapDefinitionSchema } from './schema';
+import { balanceSchema, mapDefinitionSchema } from './schema';
 import { createGameState } from '@hamsters/core';
 
 describe('баланс', () => {
@@ -24,6 +24,43 @@ describe('баланс', () => {
       expect(stats.factorPermille).toBeGreaterThan(1000);
       expect(stats.cooldownTicks).toBeGreaterThan(stats.durationTicks);
     }
+  });
+
+  it('пять родов войск с осмысленными ролями', () => {
+    expect(Object.keys(BALANCE.troops).sort()).toEqual([
+      'archer',
+      'cannon',
+      'cavalry',
+      'mage',
+      'swordsman',
+    ]);
+    expect(BALANCE.troops.swordsman.defense).toBeGreaterThan(BALANCE.troops.archer.defense);
+    expect(BALANCE.troops.mage.range).toBeGreaterThan(0);
+    expect(BALANCE.troops.cannon.speedPermille).toBeLessThan(
+      BALANCE.troops.swordsman.speedPermille,
+    );
+    expect(BALANCE.troops.cannon.costSeeds).toBeGreaterThan(BALANCE.troops.swordsman.costSeeds);
+  });
+
+  it('четыре клана с бонусами не ниже базовых', () => {
+    expect(Object.keys(BALANCE.clans)).toHaveLength(4);
+    for (const clan of Object.values(BALANCE.clans)) {
+      expect(clan.productionPermille).toBeGreaterThanOrEqual(1000);
+      expect(clan.defensePermille).toBeGreaterThanOrEqual(1000);
+      expect(clan.speedPermille).toBeGreaterThanOrEqual(1000);
+      expect(clan.spellCostPermille).toBeGreaterThanOrEqual(900);
+    }
+  });
+
+  it('схема отклоняет лишнее поле у рода войск', () => {
+    const broken = {
+      ...BALANCE,
+      troops: {
+        ...BALANCE.troops,
+        swordsman: { ...BALANCE.troops.swordsman, extra: 1 },
+      },
+    };
+    expect(() => balanceSchema.parse(broken)).toThrow();
   });
 });
 

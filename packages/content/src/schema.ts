@@ -22,6 +22,27 @@ export const boostStatsSchema = z.strictObject({
   factorPermille: z.number().int().min(1000),
 });
 
+export const troopRoleSchema = z.enum(['melee', 'ranged', 'siege', 'support']);
+
+export const troopStatsSchema = z.strictObject({
+  name: z.string().min(1),
+  role: troopRoleSchema,
+  attack: z.number().int().nonnegative(),
+  defense: z.number().int().nonnegative(),
+  speedPermille: z.number().int().min(100),
+  range: z.number().int().min(0).max(3),
+  trainTicks: z.number().int().positive(),
+  costSeeds: z.number().int().nonnegative(),
+});
+
+export const clanStatsSchema = z.strictObject({
+  name: z.string().min(1),
+  productionPermille: z.number().int().positive(),
+  defensePermille: z.number().int().positive(),
+  speedPermille: z.number().int().positive(),
+  spellCostPermille: z.number().int().positive(),
+});
+
 export const balanceSchema = z.strictObject({
   rulesVersion: z.number().int().positive(),
   contentVersion: z.number().int().positive(),
@@ -42,6 +63,19 @@ export const balanceSchema = z.strictObject({
   minCaptureGarrison: z.number().int().positive(),
   maxRoutesPerPlanet: z.number().int().positive(),
   minRouteFleet: z.number().int().positive(),
+  troops: z.strictObject({
+    swordsman: troopStatsSchema,
+    archer: troopStatsSchema,
+    cannon: troopStatsSchema,
+    cavalry: troopStatsSchema,
+    mage: troopStatsSchema,
+  }),
+  clans: z.strictObject({
+    goldenCheeks: clanStatsSchema,
+    jungarian: clanStatsSchema,
+    syrian: clanStatsSchema,
+    darkRoborowski: clanStatsSchema,
+  }),
 });
 
 export const mapPlanetSchema = z.strictObject({

@@ -1,7 +1,37 @@
 import type { MilliUnits } from './units';
+import type { TroopKind } from './troops';
 
 /** Владелец планеты «нейтрал». Игроки нумеруются с 0. */
 export const NEUTRAL_OWNER = -1;
+
+/** Кланы: небольшие бонусы, чтобы PvP оставался честным. */
+export const CLAN_IDS = ['goldenCheeks', 'jungarian', 'syrian', 'darkRoborowski'] as const;
+
+export type ClanId = (typeof CLAN_IDS)[number];
+
+export type TroopRole = 'melee' | 'ranged' | 'siege' | 'support';
+
+/** Характеристики рода войск: числа для фазового боя и тренировки. */
+export interface TroopStats {
+  readonly name: string;
+  readonly role: TroopRole;
+  readonly attack: number;
+  readonly defense: number;
+  /** Множитель скорости отряда в permille: 1000 — обычная. */
+  readonly speedPermille: number;
+  /** Дальность в «шагах» фазы: 0 — только ближний бой. */
+  readonly range: number;
+  readonly trainTicks: number;
+  readonly costSeeds: MilliUnits;
+}
+
+export interface ClanStats {
+  readonly name: string;
+  readonly productionPermille: number;
+  readonly defensePermille: number;
+  readonly speedPermille: number;
+  readonly spellCostPermille: number;
+}
 
 export type PlayerId = number;
 export type PlanetId = number;
@@ -111,6 +141,10 @@ export interface Balance {
   readonly maxRoutesPerPlanet: number;
   /** Минимальный накопленный отряд маршрута, после которого он вылетает. */
   readonly minRouteFleet: MilliUnits;
+  /** Характеристики родов войск. */
+  readonly troops: Readonly<Record<TroopKind, TroopStats>>;
+  /** Бонусы кланов. */
+  readonly clans: Readonly<Record<ClanId, ClanStats>>;
 }
 
 /** Планета в описании карты: данные, а не состояние. */

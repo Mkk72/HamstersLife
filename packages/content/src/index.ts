@@ -7,9 +7,15 @@
 import type { Balance, ContentProvider, MapDefinition } from '@hamsters/core';
 import arenaDuelJson from './data/arena-duel.json';
 import balanceJson from './data/balance.json';
+import clansJson from './data/clans.json';
+import troopsJson from './data/troops.json';
 import { balanceSchema, mapDefinitionSchema } from './schema';
 
-export const BALANCE: Balance = balanceSchema.parse(balanceJson);
+export const BALANCE: Balance = balanceSchema.parse({
+  ...balanceJson,
+  troops: troopsJson,
+  clans: clansJson,
+});
 
 const arenaDuel: MapDefinition = mapDefinitionSchema.parse(arenaDuelJson);
 
