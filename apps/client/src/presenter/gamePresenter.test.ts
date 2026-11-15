@@ -42,6 +42,7 @@ class TestView implements GameView {
   quality: QualityLevel = 'high';
   captures: PlanetId[] = [];
   boosts: BoostKind[] = [];
+  sends = 0;
 
   render(view: BoardView): void {
     this.last = view;
@@ -57,6 +58,10 @@ class TestView implements GameView {
 
   playBoost(_planetId: PlanetId, kind: BoostKind): void {
     this.boosts.push(kind);
+  }
+
+  playSend(): void {
+    this.sends += 1;
   }
 }
 
@@ -107,12 +112,13 @@ describe('выбор планет', () => {
 
 describe('отправка флота', () => {
   it('отправляет отряд из выбранной планеты в цель', () => {
-    const { presenter, source } = setup();
+    const { presenter, source, view } = setup();
     presenter.pointerDown(0);
     presenter.pointerHover(8);
     const result = presenter.pointerUp();
 
     expect(result?.ok).toBe(true);
+    expect(view.sends).toBe(1);
     expect(source.sim.state.fleets).toHaveLength(1);
     expect(source.sim.state.fleets[0]?.fromPlanetId).toBe(0);
     expect(source.sim.state.fleets[0]?.toPlanetId).toBe(8);
@@ -203,5 +209,15 @@ describe('HUD', () => {
     source.advance(1);
 
     expect(view.last?.hud.outcome).toMatchObject({ finished: true, youWon: true });
+  });
+
+  it('просит эффект захвата при смене владельца', () => {
+    const { view, source } = setup();
+    const neutral = source.sim.state.planets[2];
+    if (!neutral) throw new Error('нет планеты');
+    neutral.ownerId = 0;
+    source.advance(1);
+
+    expect(view.captures).toContain(2);
   });
 });

@@ -1,20 +1,27 @@
-import { createSignal, onCleanup } from 'solid-js';
+import type { BoostKind, Ratio } from '@hamsters/core';
+import { Show, createSignal, onCleanup } from 'solid-js';
 import type { Application } from 'pixi.js';
+import type { BoardView, QualityLevel } from '../presenter/viewModel';
+import { GameHud } from './GameHud';
+import { OutcomeOverlay } from './OutcomeOverlay';
 
-/** Временная заглушка интерфейса: сцена, счётчик FPS, название. */
-export function App(props: { app: Application }) {
+export interface AppProps {
+  readonly app: Application;
+  readonly board: () => BoardView | null;
+  readonly ratio: () => Ratio;
+  readonly quality: () => QualityLevel;
+  readonly onRatio: (ratio: Ratio) => void;
+  readonly onBoost: (kind: BoostKind) => void;
+  readonly onQuality: (quality: QualityLevel) => void;
+  readonly onRestart: () => void;
+}
+
+export function App(props: AppProps) {
   const [fps, setFps] = createSignal(0);
-  let frames = 0;
-  let last = performance.now();
 
   const sample = (): void => {
-    frames += 1;
-    const now = performance.now();
-    if (now - last >= 500) {
-      setFps(Math.round((frames * 1000) / (now - last)));
-      frames = 0;
-      last = now;
-    }
+    // Pixi сам считает FPS; не дублируем свою статистику.
+    setFps(Math.round(props.app.ticker.FPS));
   };
 
   props.app.ticker.add(sample);
@@ -22,15 +29,19 @@ export function App(props: { app: Application }) {
 
   return (
     <>
-      <div class="hud hud--top">
-        <div class="fps">
-          <span class="fps__value">{fps()}</span> FPS
-        </div>
-      </div>
-      <div class="brand">
-        Hamsters Life
-        <span class="brand__stage">этап 0 · сцена</span>
-      </div>
+      <GameHud
+        board={props.board}
+        ratio={props.ratio}
+        quality={props.quality}
+        fps={fps}
+        onRatio={props.onRatio}
+        onBoost={props.onBoost}
+        onQuality={props.onQuality}
+        onRestart={props.onRestart}
+      />
+      <Show when={props.board()?.hud.outcome}>
+        {(outcome) => <OutcomeOverlay outcome={outcome()} onRestart={props.onRestart} />}
+      </Show>
     </>
   );
 }

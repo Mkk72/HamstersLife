@@ -1,0 +1,133 @@
+import { formatMilli } from '@hamsters/core';
+import type { BoostKind, Ratio } from '@hamsters/core';
+import { For, Show } from 'solid-js';
+import type { BoardView, HudView, QualityLevel } from '../presenter/viewModel';
+import { BoostIcon } from './BoostIcon';
+
+const RATIOS: readonly Ratio[] = [25, 50, 75, 100];
+
+const QUALITIES: readonly { value: QualityLevel; label: string }[] = [
+  { value: 'low', label: 'Низкое' },
+  { value: 'medium', label: 'Среднее' },
+  { value: 'high', label: 'Высокое' },
+];
+
+const BOOST_LABEL: Readonly<Record<BoostKind, string>> = {
+  production: 'Колесо',
+  speed: 'Щёки',
+  defense: 'Скорлупа',
+};
+
+export interface GameHudProps {
+  readonly board: () => BoardView | null;
+  readonly ratio: () => Ratio;
+  readonly quality: () => QualityLevel;
+  readonly fps: () => number;
+  readonly onRatio: (ratio: Ratio) => void;
+  readonly onBoost: (kind: BoostKind) => void;
+  readonly onQuality: (quality: QualityLevel) => void;
+  readonly onRestart: () => void;
+}
+
+/** HUD: семечки, контроль карты, доли, бусты, качество, подсказка. */
+export function GameHud(props: GameHudProps) {
+  const hud = (): HudView | null => props.board()?.hud ?? null;
+  const total = (): number => {
+    const current = hud();
+    if (!current) return 1;
+    return Math.max(1, current.mine + current.enemy + current.neutral);
+  };
+  const percent = (count: number): string => `${(count / total()) * 100}%`;
+
+  return (
+    <>
+      <div class="hud hud--top">
+        <div class="seeds" title="Семечки">
+          <span class="seeds__icon" aria-hidden="true" />
+          <span class="seeds__value">{formatMilli(hud()?.seeds ?? 0, 0)}</span>
+        </div>
+
+        <div class="control" title="Контроль карты">
+          <div class="control__track">
+            <div class="control__mine" style={{ width: percent(hud()?.mine ?? 0) }} />
+            <div class="control__neutral" style={{ width: percent(hud()?.neutral ?? 0) }} />
+            <div class="control__enemy" style={{ width: percent(hud()?.enemy ?? 0) }} />
+          </div>
+          <div class="control__labels">
+            <span>{hud()?.mine ?? 0}</span>
+            <span class="control__muted">{hud()?.neutral ?? 0} нейтр.</span>
+            <span>{hud()?.enemy ?? 0}</span>
+          </div>
+        </div>
+
+        <div class="top-actions">
+          <select
+            class="select"
+            aria-label="Качество графики"
+            value={props.quality()}
+            onChange={(event) => props.onQuality(event.currentTarget.value as QualityLevel)}
+          >
+            <For each={QUALITIES}>
+              {(item) => <option value={item.value}>{item.label}</option>}
+            </For>
+          </select>
+          <button class="button" type="button" onClick={props.onRestart}>
+            Новый матч
+          </button>
+        </div>
+      </div>
+
+      <div class="hud hud--bottom">
+        <div class="boosts">
+          <For each={hud()?.boosts ?? []}>
+            {(boost) => (
+              <button
+                class="boost"
+                classList={{ 'boost--disabled': !boost.ready }}
+                type="button"
+                title={`${BOOST_LABEL[boost.kind]} — ${formatMilli(boost.cost, 0)} семечек`}
+                onClick={() => props.onBoost(boost.kind)}
+              >
+                <BoostIcon kind={boost.kind} />
+                <span class="boost__text">
+                  <span class="boost__name">{BOOST_LABEL[boost.kind]}</span>
+                  <span class="boost__cost">
+                    <Show
+                      when={boost.cooldownSeconds > 0}
+                      fallback={<>{formatMilli(boost.cost, 0)}</>}
+                    >
+                      {Math.ceil(boost.cooldownSeconds)} с
+                    </Show>
+                  </span>
+                </span>
+              </button>
+            )}
+          </For>
+        </div>
+
+        <div class="ratios" role="group" aria-label="Доля отправки">
+          <For each={RATIOS}>
+            {(value) => (
+              <button
+                class="ratio"
+                classList={{ 'ratio--active': props.ratio() === value }}
+                type="button"
+                onClick={() => props.onRatio(value)}
+              >
+                {value}%
+              </button>
+            )}
+          </For>
+        </div>
+      </div>
+
+      <Show when={hud()?.hint}>
+        {(hint) => <div class="hint">{hint()}</div>}
+      </Show>
+
+      <div class="fps">
+        <span class="fps__value">{props.fps() > 0 ? props.fps() : '—'}</span> FPS
+      </div>
+    </>
+  );
+}

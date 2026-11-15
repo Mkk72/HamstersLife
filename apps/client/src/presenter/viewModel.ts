@@ -21,6 +21,8 @@ export interface PlanetView {
   readonly ownerId: PlayerId;
   readonly garrison: MilliUnits;
   readonly selected: boolean;
+  /** Планета человека и партия только началась — повод для подписи «моя». */
+  readonly mine: boolean;
   readonly boosts: BoostsView;
 }
 
@@ -85,4 +87,6 @@ export interface GameView {
   setQuality(level: QualityLevel): void;
   playCapture(planetId: PlanetId): void;
   playBoost(planetId: PlanetId, kind: BoostKind): void;
+  /** Отряд ушёл с планеты — короткий звук и вспышка, без знания правил. */
+  playSend(): void;
 }

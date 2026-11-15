@@ -53,6 +53,7 @@ export class GamePresenter {
 
   #selected = new Set<PlanetId>();
   #hover: PlanetId | null = null;
+  #owners = new Map<PlanetId, PlayerId>();
   #ratio: Ratio;
   #quality: QualityLevel = 'high';
   #running = false;
@@ -120,6 +121,13 @@ export class GamePresenter {
     this.render();
   }
 
+  /** Снять выбор (клик по пустому месту). */
+  clearSelection(): void {
+    if (this.#selected.size === 0) return;
+    this.#selected.clear();
+    this.render();
+  }
+
   /** Курсор над планетой (или мимо): отсюда берётся цель для стрелки. */
   pointerHover(planetId: PlanetId | null): void {
     this.#hover = planetId;
@@ -135,6 +143,7 @@ export class GamePresenter {
       return null;
     }
     const result = this.#sendFleet(target);
+    if (result?.ok) this.#view.playSend();
     this.render();
     return result;
   }
@@ -155,7 +164,20 @@ export class GamePresenter {
   }
 
   render(): void {
-    this.#view.render(this.buildView());
+    const view = this.buildView();
+    this.#view.render(view);
+    this.#detectCaptures(view);
+  }
+
+  /** Смена владельца между отрисовками — повод для эффекта захвата. */
+  #detectCaptures(view: BoardView): void {
+    for (const planet of view.planets) {
+      const previous = this.#owners.get(planet.id);
+      this.#owners.set(planet.id, planet.ownerId);
+      if (previous !== undefined && previous !== planet.ownerId) {
+        this.#view.playCapture(planet.id);
+      }
+    }
   }
 
   /** Снимок для отладки и тестов: тот же объект, что уходит в вид. */
@@ -213,6 +235,7 @@ export class GamePresenter {
       ownerId: planet.ownerId,
       garrison: planet.garrison,
       selected: this.#selected.has(planet.id),
+      mine: planet.ownerId === this.#playerId && tick < 20 * 10,
       boosts: {
         production: boostRemainingTicks(planet, 'production', tick) / TICKS_PER_SECOND,
         speed: boostRemainingTicks(planet, 'speed', tick) / TICKS_PER_SECOND,

@@ -29,6 +29,9 @@ importers:
 
   apps/client:
     dependencies:
+      '@hamsters/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@hamsters/content':
         specifier: workspace:*
         version: link:../../packages/content
@@ -48,6 +51,16 @@ importers:
       vite-plugin-solid:
         specifier: 2.11.16
         version: 2.11.16(solid-js@1.9.19)(vite@8.3.8(@types/node@26.6.6))
+
+  packages/ai:
+    dependencies:
+      '@hamsters/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@hamsters/content':
+        specifier: workspace:*
+        version: link:../content
 
   packages/content:
     dependencies:
