@@ -34,11 +34,11 @@ export const testBalance: Balance = {
     meleeEfficiencyPermille: 1200,
   },
   troops: {
-    swordsman: { name: 'Мечник', role: 'melee', attack: 1000, defense: 1400, speedPermille: 1000, range: 0, trainTicks: 60, costSeeds: 20_000, strongAgainst: ['archer'], weakAgainst: ['cannon'] },
-    archer: { name: 'Лучник', role: 'ranged', attack: 900, defense: 700, speedPermille: 1000, range: 1, trainTicks: 70, costSeeds: 22_000, strongAgainst: ['cavalry'], weakAgainst: ['cannon'] },
-    cannon: { name: 'Пушка', role: 'siege', attack: 1600, defense: 500, speedPermille: 600, range: 2, trainTicks: 110, costSeeds: 35_000, strongAgainst: ['swordsman'], weakAgainst: ['cavalry'] },
-    cavalry: { name: 'Конница', role: 'melee', attack: 1300, defense: 900, speedPermille: 1600, range: 0, trainTicks: 80, costSeeds: 26_000, strongAgainst: ['cannon', 'archer'], weakAgainst: ['swordsman'] },
-    mage: { name: 'Маг', role: 'support', attack: 700, defense: 600, speedPermille: 1000, range: 2, trainTicks: 120, costSeeds: 40_000, strongAgainst: ['swordsman', 'archer'], weakAgainst: ['cavalry'] },
+    swordsman: { name: 'Мечник', shortName: 'Меч', role: 'melee', attack: 1000, defense: 1400, speedPermille: 1000, range: 0, trainTicks: 60, costSeeds: 20_000, strongAgainst: ['archer'], weakAgainst: ['cannon'] },
+    archer: { name: 'Лучник', shortName: 'Лук', role: 'ranged', attack: 900, defense: 700, speedPermille: 1000, range: 1, trainTicks: 70, costSeeds: 22_000, strongAgainst: ['cavalry'], weakAgainst: ['cannon'] },
+    cannon: { name: 'Пушка', shortName: 'Пуш', role: 'siege', attack: 1600, defense: 500, speedPermille: 600, range: 2, trainTicks: 110, costSeeds: 35_000, strongAgainst: ['swordsman'], weakAgainst: ['cavalry'] },
+    cavalry: { name: 'Конница', shortName: 'Кон', role: 'melee', attack: 1300, defense: 900, speedPermille: 1600, range: 0, trainTicks: 80, costSeeds: 26_000, strongAgainst: ['cannon', 'archer'], weakAgainst: ['swordsman'] },
+    mage: { name: 'Маг', shortName: 'Маг', role: 'support', attack: 700, defense: 600, speedPermille: 1000, range: 2, trainTicks: 120, costSeeds: 40_000, strongAgainst: ['swordsman', 'archer'], weakAgainst: ['cavalry'] },
   },
   clans: {
     goldenCheeks: { name: 'Золотые Щёки', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },

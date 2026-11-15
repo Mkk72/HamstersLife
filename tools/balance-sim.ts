@@ -16,6 +16,7 @@ import {
 import type { ClanId, TroopKind } from '@hamsters/core';
 import { SimpleBot } from '@hamsters/ai';
 import { BALANCE, getMap } from '@hamsters/content';
+import { generateDuelMap } from '@hamsters/levelgen';
 
 interface Options {
   readonly matches: number;
@@ -50,9 +51,14 @@ interface MatchOutcome {
   readonly ticks: number;
 }
 
-/** Один матч ботов; кланы назначаются до старта. */
-function playMatch(seed: number, clans: readonly ClanId[], limitTicks: number): MatchOutcome {
-  const map = getMap('arena-duel');
+/** Один матч ботов на сгенерированной карте; кланы назначаются до старта. */
+function playMatch(
+  seed: number,
+  clans: readonly ClanId[],
+  limitTicks: number,
+  firstPlayer: 0 | 1,
+): MatchOutcome {
+  const map = seed % 3 === 0 ? getMap('arena-duel') : generateDuelMap(seed);
   const sim = new Simulation(map, BALANCE, seed);
 
   for (let playerId = 0; playerId < sim.state.players.length; playerId += 1) {
@@ -62,9 +68,10 @@ function playMatch(seed: number, clans: readonly ClanId[], limitTicks: number): 
   }
 
   const bots = sim.state.players.map(() => new SimpleBot(BALANCE));
+  const order = [firstPlayer, firstPlayer === 0 ? 1 : 0];
 
   while (sim.tick < limitTicks) {
-    for (let playerId = 0; playerId < bots.length; playerId += 1) {
+    for (const playerId of order) {
       const bot = bots[playerId];
       if (!bot) continue;
       for (const command of bot.decide(sim.state, playerId)) {
@@ -103,26 +110,36 @@ function clanTable(options: Options): void {
           [second, first],
         ];
 
+        // Обе посадки и оба порядка хода: иначе побеждает место за столом,
+        // а не клан.
         for (let seatIndex = 0; seatIndex < seatings.length; seatIndex += 1) {
           const seating = seatings[seatIndex];
           if (!seating) continue;
-          const outcome = playMatch(seed + seatIndex, seating, options.limitTicks);
-          const firstStats = stats.get(first);
-          const secondStats = stats.get(second);
-          if (firstStats) firstStats.games += 1;
-          if (secondStats) secondStats.games += 1;
 
-          if (outcome.winner === null) {
-            draws += 1;
-            continue;
-          }
-          const winner = seating[outcome.winner] ?? null;
-          if (winner === first) {
-            firstWins += 1;
-            if (firstStats) firstStats.wins += 1;
-          } else if (winner === second) {
-            secondWins += 1;
-            if (secondStats) secondStats.wins += 1;
+          for (const firstPlayer of [0, 1] as const) {
+            const outcome = playMatch(
+              seed + seatIndex * 2 + firstPlayer,
+              seating,
+              options.limitTicks,
+              firstPlayer,
+            );
+            const firstStats = stats.get(first);
+            const secondStats = stats.get(second);
+            if (firstStats) firstStats.games += 1;
+            if (secondStats) secondStats.games += 1;
+
+            if (outcome.winner === null) {
+              draws += 1;
+              continue;
+            }
+            const winner = seating[outcome.winner] ?? null;
+            if (winner === first) {
+              firstWins += 1;
+              if (firstStats) firstStats.wins += 1;
+            } else if (winner === second) {
+              secondWins += 1;
+              if (secondStats) secondStats.wins += 1;
+            }
           }
         }
       }

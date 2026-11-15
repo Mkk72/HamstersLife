@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE, CONTENT, getMap } from '@hamsters/content';
-import { Simulation, garrisonOf, troopTotal } from '@hamsters/core';
+import { Simulation, createTroopStack, garrisonOf, troopTotal } from '@hamsters/core';
 import type { BoostKind, Command, CommandResult, GameState, PlanetId, SimSource } from '@hamsters/core';
 import type { BoardView, GameView, QualityLevel } from './viewModel';
 import { GamePresenter } from './gamePresenter';
@@ -260,6 +260,56 @@ describe('обучение войск', () => {
   it('без выбора не заказывает обучение', () => {
     const { presenter } = setup();
     expect(presenter.train('swordsman')).toBeNull();
+  });
+});
+
+describe('состав отряда', () => {
+  it('по умолчанию забирает состав пропорционально', () => {
+    const { presenter } = setup();
+    expect(presenter.composition).toBe('all');
+    expect(presenter.buildView().hud.composition.mode).toBe('all');
+  });
+
+  it('выбранный род ограничивает отряд только им', () => {
+    const { presenter, source } = setup();
+    const home = source.sim.state.planets[0];
+    if (!home) throw new Error('нет планеты');
+    home.troops = createTroopStack({ swordsman: 6000, cavalry: 4000 });
+
+    presenter.setComposition('cavalry');
+    presenter.pointerDown(0);
+    presenter.pointerHover(8);
+    presenter.pointerUp();
+
+    const fleet = source.sim.state.fleets[0];
+    expect(fleet ? troopTotal(fleet.troops) : 0).toBe(4000);
+    expect(fleet?.troops.swordsman).toBe(0);
+    expect(fleet?.troops.cavalry).toBe(4000);
+  });
+
+  it('панель показывает состав выбранной планеты и активный шаблон', () => {
+    const { presenter, view, source } = setup();
+    const home = view.last?.hud.composition;
+    expect(home?.units).toHaveLength(5);
+    expect(home?.templates.map((template) => template.id)).toEqual([
+      'all',
+      'mixed',
+      'swordsman',
+      'archer',
+      'cannon',
+      'cavalry',
+      'mage',
+    ]);
+
+    const planet = source.sim.state.planets[0];
+    if (!planet) throw new Error('нет планеты');
+    presenter.pointerDown(0);
+    presenter.setComposition('mixed');
+    const composition = view.last?.hud.composition;
+    expect(composition?.templates.find((template) => template.id === 'mixed')?.active).toBe(true);
+    expect(composition?.units.find((unit) => unit.kind === 'swordsman')?.count).toBe(
+      planet.troops.swordsman,
+    );
   });
 });
 

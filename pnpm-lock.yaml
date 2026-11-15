@@ -17,6 +17,9 @@ importers:
       '@hamsters/core':
         specifier: workspace:*
         version: link:packages/core
+      '@hamsters/levelgen':
+        specifier: workspace:*
+        version: link:packages/levelgen
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6

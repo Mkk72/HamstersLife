@@ -70,6 +70,41 @@ export function splitTroops(stack: TroopStack, amount: MilliUnits): TroopStack {
 }
 
 /**
+ * Взять отряд заданной численности, по возможности из выбранных родов.
+ *
+ * `weights` — желаемые доли родов (например, 40/30/30). Если веса не заданы
+ * или пусты, отряд забирается пропорционально составу. Если выбранного рода
+ * не хватает, берётся сколько есть; недостача не добирается другими родами —
+ * игрок сам выбрал состав.
+ */
+export function allocateTroops(
+  stack: TroopStack,
+  amount: MilliUnits,
+  weights?: Partial<Record<TroopKind, number>>,
+): TroopStack {
+  const total = troopTotal(stack);
+  if (total <= 0 || amount <= 0) return createTroopStack();
+  const take = Math.min(amount, total);
+
+  const entries = weights
+    ? (TROOP_KINDS.filter((kind) => (weights[kind] ?? 0) > 0).map((kind) => ({
+        kind,
+        weight: weights[kind] ?? 0,
+      })) as { kind: TroopKind; weight: number }[])
+    : [];
+
+  if (entries.length === 0) return resizeTroops(stack, take);
+
+  const sumWeights = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  const part = createTroopStack();
+  for (const entry of entries) {
+    const want = Math.floor((take * entry.weight) / sumWeights);
+    part[entry.kind] = Math.min(want, stack[entry.kind]);
+  }
+  return part;
+}
+
+/**
  * Пересчитать состав на точное количество, сохранив пропорции.
  *
  * В отличие от `scaleTroops`, сумма результата ровно `targetTotal`: остаток

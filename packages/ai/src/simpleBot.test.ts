@@ -87,6 +87,17 @@ describe('SimpleBot («Боец»)', () => {
     expect(training.amount).toBeGreaterThan(0);
   });
 
+  it('клан задаёт, кого тренирует бот', () => {
+    const sim = arena();
+    const bot = new SimpleBot(BALANCE);
+    const training = bot.decide(sim.state, 1).find((command) => command.type === 'TrainTroops');
+
+    expect(training?.type).toBe('TrainTroops');
+    if (training?.type !== 'TrainTroops') return;
+    // игрок 1 — Джунгарские Звёздные, тренирует конницу
+    expect(training.kind).toBe('cavalry');
+  });
+
   it('не учит, если семечек хватает только на буст', () => {
     const sim = arena();
     const player = sim.state.players[0];

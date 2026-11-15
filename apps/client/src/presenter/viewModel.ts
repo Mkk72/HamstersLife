@@ -73,9 +73,32 @@ export interface BoostButtonView {
 export interface TrainingButtonView {
   readonly kind: TroopKind;
   readonly name: string;
+  readonly short: string;
   readonly cost: MilliUnits;
   readonly affordable: boolean;
   readonly ready: boolean;
+}
+
+/** Выбор состава отправляемого отряда. */
+export type CompositionMode = 'all' | 'mixed' | TroopKind;
+
+export interface TroopCountView {
+  readonly kind: TroopKind;
+  readonly name: string;
+  readonly short: string;
+  readonly count: MilliUnits;
+}
+
+export interface CompositionTemplateView {
+  readonly id: string;
+  readonly label: string;
+  readonly active: boolean;
+}
+
+export interface CompositionView {
+  readonly units: readonly TroopCountView[];
+  readonly templates: readonly CompositionTemplateView[];
+  readonly mode: CompositionMode;
 }
 
 export interface OutcomeView {
@@ -93,6 +116,7 @@ export interface HudView {
   readonly clanName: string;
   readonly boosts: readonly BoostButtonView[];
   readonly training: readonly TrainingButtonView[];
+  readonly composition: CompositionView;
   readonly outcome: OutcomeView | null;
   readonly hint: string | null;
   /** Обнаружена правка защищённых значений в клиенте. */

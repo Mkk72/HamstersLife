@@ -15,12 +15,14 @@ import {
   garrisonOf,
   type Balance,
   type Bot,
+  type ClanId,
   type Command,
   type GameState,
   type MilliUnits,
   type Planet,
   type PlayerId,
   type Ratio,
+  type TroopKind,
 } from '@hamsters/core';
 
 export interface SimpleBotOptions {
@@ -43,6 +45,14 @@ const DEFAULT_OPTIONS = {
 } satisfies Required<SimpleBotOptions>;
 
 const SIZE_VALUE: Readonly<Record<Planet['size'], number>> = { S: 1, M: 2, L: 3, XL: 4 };
+
+/** Клан задаёт, кого бот тренирует: так кланы проверяются симулятором. */
+const TRAINED_BY_CLAN: Readonly<Record<ClanId, TroopKind>> = {
+  goldenCheeks: 'swordsman',
+  jungarian: 'cavalry',
+  syrian: 'archer',
+  darkRoborowski: 'mage',
+};
 
 export class SimpleBot implements Bot {
   readonly name = 'Боец';
@@ -86,12 +96,14 @@ export class SimpleBot implements Bot {
     const planet = own[0];
     if (!planet) return null;
 
-    const stats = this.#balance.troops.swordsman;
-    const amount = 2;
+    const kind = TRAINED_BY_CLAN[player.clanId] ?? 'swordsman';
+    const stats = this.#balance.troops[kind];
+    // Дорогие рода учим по одному, дешёвые — по два.
+    const amount = stats.costSeeds <= 22_000 ? 2 : 1;
     const cost = amount * stats.costSeeds;
     if (player.seeds < cost + this.#balance.boosts.production.cost) return null;
 
-    return { type: 'TrainTroops', playerId, planetId: planet.id, kind: 'swordsman', amount };
+    return { type: 'TrainTroops', playerId, planetId: planet.id, kind, amount };
   }
 
   /** Маршрут, который кормит уже свою планету, только мешает — отрезаем. */

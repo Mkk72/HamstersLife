@@ -11,7 +11,7 @@ import { KeyboardInput } from './input/keyboardInput';
 import { PointerInput } from './input/pointerInput';
 import { WheelInput } from './input/wheelInput';
 import { GamePresenter } from './presenter/gamePresenter';
-import type { BoardView, QualityLevel } from './presenter/viewModel';
+import type { BoardView, CompositionMode, QualityLevel } from './presenter/viewModel';
 import { GameScene } from './render/gameScene';
 import { THEME } from './render/theme';
 import { MatchRecorder } from './replay/matchRecorder';
@@ -194,6 +194,7 @@ render(
       }}
       onBoost={(kind: BoostKind) => presenter?.applyBoost(kind)}
       onTrain={(kind: TroopKind) => presenter?.train(kind)}
+      onComposition={(id: string) => presenter?.setComposition(id as CompositionMode)}
       onQuality={(value) => {
         setQuality(value);
         presenter?.setQuality(value);

@@ -93,4 +93,81 @@ describe('состав отряда в правилах', () => {
     expect(target.troops.archer).toBe(2000);
     expect(target.troops.cavalry).toBe(2000);
   });
+
+  it('берёт выбранный род войск, если игрок задал состав', () => {
+    const state = fresh();
+    const home = getPlanet(state, 0);
+    if (!home) throw new Error('нет планеты');
+    home.troops = createTroopStack({ swordsman: 6000, archer: 4000 });
+
+    applyCommand(
+      state,
+      {
+        type: 'SendFleet',
+        playerId: 0,
+        fromPlanetIds: [0],
+        toPlanetId: 3,
+        ratio: 50,
+        composition: { archer: 1000 },
+      },
+      testBalance,
+    );
+
+    const fleet = state.fleets[0];
+    expect(fleet?.troops.archer).toBe(4000);
+    expect(fleet?.troops.swordsman).toBe(0);
+    expect(home.troops.swordsman).toBe(6000);
+    expect(home.troops.archer).toBe(0);
+  });
+
+  it('смешанный выбор 40/30/30 соблюдает пропорции состава', () => {
+    const state = fresh();
+    const home = getPlanet(state, 0);
+    if (!home) throw new Error('нет планеты');
+    home.troops = createTroopStack({ swordsman: 6000, archer: 4000, cavalry: 2000 });
+
+    applyCommand(
+      state,
+      {
+        type: 'SendFleet',
+        playerId: 0,
+        fromPlanetIds: [0],
+        toPlanetId: 3,
+        ratio: 50,
+        composition: { swordsman: 40, archer: 30, cavalry: 30 },
+      },
+      testBalance,
+    );
+
+    const fleet = state.fleets[0];
+    expect(fleet?.troops.swordsman).toBe(2400);
+    expect(fleet?.troops.archer).toBe(1800);
+    expect(fleet?.troops.cavalry).toBe(1800);
+    expect(home.troops.swordsman).toBe(3600);
+    expect(home.troops.archer).toBe(2200);
+    expect(home.troops.cavalry).toBe(200);
+  });
+
+  it('если выбранного рода мало — берёт сколько есть, не добирая другими', () => {
+    const state = fresh();
+    const home = getPlanet(state, 0);
+    if (!home) throw new Error('нет планеты');
+    home.troops = createTroopStack({ swordsman: 5000, archer: 1000 });
+
+    applyCommand(
+      state,
+      {
+        type: 'SendFleet',
+        playerId: 0,
+        fromPlanetIds: [0],
+        toPlanetId: 3,
+        ratio: 50,
+        composition: { archer: 1000 },
+      },
+      testBalance,
+    );
+
+    expect(troopTotal(state.fleets[0]?.troops ?? createTroopStack())).toBe(1000);
+    expect(home.troops.swordsman).toBe(5000);
+  });
 });

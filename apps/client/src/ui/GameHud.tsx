@@ -28,15 +28,6 @@ const BOOST_LABEL: Readonly<Record<BoostKind, string>> = {
   defense: 'Скорлупа',
 };
 
-/** Короткие подписи родов войск для панели обучения. */
-const TROOP_SHORT: Readonly<Record<TroopKind, string>> = {
-  swordsman: 'Меч',
-  archer: 'Лук',
-  cannon: 'Пуш',
-  cavalry: 'Кон',
-  mage: 'Маг',
-};
-
 export interface GameHudProps {
   readonly board: () => BoardView | null;
   readonly ratio: () => Ratio;
@@ -48,6 +39,7 @@ export interface GameHudProps {
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onTrain: (kind: TroopKind) => void;
+  readonly onComposition: (id: string) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
   readonly onSpeed: (speed: number) => void;
@@ -154,6 +146,37 @@ export function GameHud(props: GameHudProps) {
 
       <div class="hud hud--bottom">
         <div class="bottom-left">
+          <div class="composition">
+            <div class="composition__units">
+              <For each={hud()?.composition.units ?? []}>
+                {(unit) => (
+                  <span
+                    class="composition__unit"
+                    classList={{ 'composition__unit--empty': unit.count === 0 }}
+                    title={unit.name}
+                  >
+                    {unit.short} {Math.floor(unit.count / 1000)}
+                  </span>
+                )}
+              </For>
+            </div>
+            <div class="composition__templates" role="group" aria-label="Состав отряда">
+              <For each={hud()?.composition.templates ?? []}>
+                {(template) => (
+                  <button
+                    class="chip"
+                    classList={{ 'chip--active': template.active }}
+                    type="button"
+                    title="Каким составом отправлять следующий отряд"
+                    onClick={() => props.onComposition(template.id)}
+                  >
+                    {template.label}
+                  </button>
+                )}
+              </For>
+            </div>
+          </div>
+
           <div class="training" role="group" aria-label="Обучение войск">
             <For each={hud()?.training ?? []}>
               {(troop) => (
@@ -164,7 +187,7 @@ export function GameHud(props: GameHudProps) {
                   title={`${troop.name} — ${formatMilli(troop.cost, 0)} семечек за одного`}
                   onClick={() => props.onTrain(troop.kind)}
                 >
-                  <span class="train__name">{TROOP_SHORT[troop.kind]}</span>
+                  <span class="train__name">{troop.short}</span>
                   <span class="train__cost">{formatMilli(troop.cost, 0)}</span>
                 </button>
               )}

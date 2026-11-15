@@ -28,6 +28,7 @@ export const troopKindSchema = z.enum(['swordsman', 'archer', 'cannon', 'cavalry
 
 export const troopStatsSchema = z.strictObject({
   name: z.string().min(1),
+  shortName: z.string().min(1),
   role: troopRoleSchema,
   attack: z.number().int().nonnegative(),
   defense: z.number().int().nonnegative(),

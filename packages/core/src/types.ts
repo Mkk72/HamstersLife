@@ -16,6 +16,8 @@ export type TroopRole = 'melee' | 'ranged' | 'siege' | 'support';
 /** Характеристики рода войск: числа для фазового боя и тренировки. */
 export interface TroopStats {
   readonly name: string;
+  /** Короткая подпись для панелей: «Меч», «Лук» и т.п. */
+  readonly shortName: string;
   readonly role: TroopRole;
   readonly attack: number;
   readonly defense: number;
@@ -210,6 +212,11 @@ export type Command =
       readonly fromPlanetIds: readonly PlanetId[];
       readonly toPlanetId: PlanetId;
       readonly ratio: Ratio;
+      /**
+       * Желаемый состав отряда: веса родов. Если не задан — отряд забирается
+       * пропорционально составу планеты (текущее поведение).
+       */
+      readonly composition?: Partial<Record<TroopKind, number>>;
     }
   | {
       readonly type: 'ApplyBoost';

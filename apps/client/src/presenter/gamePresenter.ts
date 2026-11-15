@@ -32,11 +32,14 @@ import type {
   ArrowView,
   BoardView,
   BoostButtonView,
+  CompositionMode,
+  CompositionTemplateView,
   GameView,
   HudView,
   PlanetView,
   QualityLevel,
   TrainingButtonView,
+  TroopCountView,
 } from './viewModel';
 import { ProtectedInt } from '../security/protectedInt';
 
@@ -61,6 +64,7 @@ export class GamePresenter {
   #owners = new Map<PlanetId, PlayerId>();
   #ratio: Ratio;
   #quality: QualityLevel = 'high';
+  #composition: CompositionMode = 'all';
   #speed = 1;
   #running = false;
   /** Значения HUD замаскированы: правка картинки извне видна по контрольной сумме. */
@@ -129,6 +133,16 @@ export class GamePresenter {
 
   get speed(): number {
     return this.#speed;
+  }
+
+  /** Желаемый состав следующего отряда. */
+  setComposition(mode: CompositionMode): void {
+    this.#composition = mode;
+    this.render();
+  }
+
+  get composition(): CompositionMode {
+    return this.#composition;
   }
 
   /** Отрезать постоянный маршрут (ПКМ-протяжка). */
@@ -302,13 +316,21 @@ export class GamePresenter {
     const sources = [...this.#selected];
     if (sources.length === 0) return null;
     if (sources.includes(target)) return null;
+    const weights = this.#compositionWeights();
     return this.#sim.sendCommand({
       type: 'SendFleet',
       playerId: this.#playerId,
       fromPlanetIds: sources,
       toPlanetId: target,
       ratio: this.#ratio,
+      ...(weights ? { composition: weights } : {}),
     });
+  }
+
+  #compositionWeights(): Partial<Record<TroopKind, number>> | undefined {
+    if (this.#composition === 'all') return undefined;
+    if (this.#composition === 'mixed') return { swordsman: 40, archer: 30, cavalry: 30 };
+    return { [this.#composition]: 1000 };
   }
 
   #planetView(planet: Planet, tick: number): PlanetView {
@@ -396,8 +418,28 @@ export class GamePresenter {
         selectedPlanet.ownerId === this.#playerId &&
         selectedPlanet.training.length < this.#balance.maxTrainingQueue &&
         affordable;
-      return { kind, name: stats.name, cost: stats.costSeeds, affordable, ready };
+      return { kind, name: stats.name, short: stats.shortName, cost: stats.costSeeds, affordable, ready };
     });
+
+    const selected = planetId !== null ? state.planets[planetId] : undefined;
+    const units: TroopCountView[] = TROOP_KINDS.map((kind) => {
+      const stats = this.#balance.troops[kind];
+      return {
+        kind,
+        name: stats.name,
+        short: stats.shortName,
+        count: selected?.troops[kind] ?? 0,
+      };
+    });
+    const templates: CompositionTemplateView[] = [
+      { id: 'all', label: 'Все', active: this.#composition === 'all' },
+      { id: 'mixed', label: 'Смеш', active: this.#composition === 'mixed' },
+      ...TROOP_KINDS.map((kind) => ({
+        id: kind as string,
+        label: this.#balance.troops[kind].shortName,
+        active: this.#composition === kind,
+      })),
+    ];
 
     this.#rotateMasks(tick);
     this.#guarded.seeds.set(me?.seeds ?? 0);
@@ -416,6 +458,7 @@ export class GamePresenter {
       clanName: me ? (this.#balance.clans[me.clanId]?.name ?? '') : '',
       boosts,
       training,
+      composition: { units, templates, mode: this.#composition },
       outcome: outcome.finished
         ? { finished: true, winnerId: outcome.winnerId, youWon: outcome.winnerId === this.#playerId }
         : null,

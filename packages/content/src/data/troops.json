@@ -13,7 +13,8 @@
     ],
     "weakAgainst": [
       "cannon"
-    ]
+    ],
+    "shortName": "Меч"
   },
   "archer": {
     "name": "Лучник",
@@ -29,7 +30,8 @@
     ],
     "weakAgainst": [
       "cannon"
-    ]
+    ],
+    "shortName": "Лук"
   },
   "cannon": {
     "name": "Пушка",
@@ -45,7 +47,8 @@
     ],
     "weakAgainst": [
       "cavalry"
-    ]
+    ],
+    "shortName": "Пуш"
   },
   "cavalry": {
     "name": "Конница",
@@ -62,7 +65,8 @@
     ],
     "weakAgainst": [
       "swordsman"
-    ]
+    ],
+    "shortName": "Кон"
   },
   "mage": {
     "name": "Маг-звездочёт",
@@ -79,6 +83,7 @@
     ],
     "weakAgainst": [
       "cavalry"
-    ]
+    ],
+    "shortName": "Маг"
   }
 }

@@ -18,6 +18,7 @@ export interface AppProps {
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onTrain: (kind: TroopKind) => void;
+  readonly onComposition: (id: string) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
   readonly onSpeed: (speed: number) => void;
@@ -58,6 +59,7 @@ export function App(props: AppProps) {
           onRatio={props.onRatio}
           onBoost={props.onBoost}
           onTrain={props.onTrain}
+          onComposition={props.onComposition}
           onQuality={props.onQuality}
           onMap={props.onMap}
           onSpeed={props.onSpeed}
