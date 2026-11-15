@@ -71,6 +71,7 @@ export class PlanetSprite extends Container {
       view.size,
       view.ownerId,
       view.selected ? 'sel' : '',
+      view.highlighted ? 'target' : '',
       view.boosts.production > 0 ? 'p' : '',
       view.boosts.speed > 0 ? 's' : '',
       view.boosts.defense > 0 ? 'd' : '',
@@ -130,6 +131,20 @@ export class PlanetSprite extends Container {
 
     if (view.selected) {
       ring.circle(0, 0, radius + 6).stroke({ width: 3, color: THEME.arrow, alpha: 0.9 });
+    }
+
+    // Контур будущей цели: пунктирное кольцо вокруг планеты под курсором.
+    if (view.highlighted) {
+      const targetRadius = radius + 11;
+      const segments = 16;
+      for (let index = 0; index < segments; index += 2) {
+        const start = (Math.PI * 2 * index) / segments;
+        const end = (Math.PI * 2 * (index + 1)) / segments;
+        ring
+          .arc(0, 0, targetRadius, start, end)
+          .stroke({ width: 4, color: 0xffd166, alpha: 0.95 });
+      }
+      ring.circle(0, 0, radius + 15).stroke({ width: 1.5, color: 0xffd166, alpha: 0.35 });
     }
 
     for (const [kind, angle] of Object.entries(BOOST_ANGLES)) {

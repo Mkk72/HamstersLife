@@ -21,6 +21,8 @@ export interface PlanetView {
   readonly ownerId: PlayerId;
   readonly garrison: MilliUnits;
   readonly selected: boolean;
+  /** Под курсором во время протяжки — контур будущей цели. */
+  readonly highlighted: boolean;
   /** Планета человека и партия только началась — повод для подписи «моя». */
   readonly mine: boolean;
   readonly boosts: BoostsView;

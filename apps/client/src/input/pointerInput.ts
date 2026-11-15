@@ -12,6 +12,8 @@ import type { GamePresenter } from '../presenter/gamePresenter';
 export interface PlanetPicker {
   hitTest(screenX: number, screenY: number): PlanetId | null;
   hitTestRoute(screenX: number, screenY: number): number | null;
+  /** Экранная точка → мир, чтобы стрелка тянулась за курсором. */
+  toWorld(screenX: number, screenY: number): { x: number; y: number };
 }
 
 export class PointerInput {
@@ -66,6 +68,8 @@ export class PointerInput {
     }
     this.#dragging = true;
     presenter.pointerDown(planetId, event.shiftKey);
+    const point = this.#picker.toWorld(event.offsetX, event.offsetY);
+    presenter.pointerMove(point.x, point.y, planetId);
   };
 
   #onMove = (event: PointerEvent): void => {
@@ -78,7 +82,8 @@ export class PointerInput {
     }
 
     const planetId = this.#picker.hitTest(event.offsetX, event.offsetY);
-    presenter.pointerHover(planetId);
+    const point = this.#picker.toWorld(event.offsetX, event.offsetY);
+    presenter.pointerMove(point.x, point.y, planetId);
   };
 
   #onUp = (): void => {

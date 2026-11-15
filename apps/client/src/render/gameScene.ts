@@ -175,6 +175,12 @@ export class GameScene implements GameView {
     return this.#planetLayer.hitTest(point.x, point.y);
   }
 
+  /** Экранная точка в мировых координатах — для «резиновой» стрелки. */
+  toWorld(screenX: number, screenY: number): { x: number; y: number } {
+    const point = this.world.toLocal({ x: screenX, y: screenY });
+    return { x: point.x, y: point.y };
+  }
+
   /** Маршрут под экранной точкой — для резки ПКМ. */
   hitTestRoute(screenX: number, screenY: number): number | null {
     if (!this.#board) return null;

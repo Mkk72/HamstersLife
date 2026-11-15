@@ -67,6 +67,10 @@ export class GamePresenter {
   #composition: CompositionMode = 'all';
   #speed = 1;
   #seenClashes = new Set<string>();
+  /** Курсор в мировых координатах, пока тянем стрелку. */
+  #cursor: { x: number; y: number } | null = null;
+  /** ЛКМ зажата: рисуем «резиновую» стрелку сразу. */
+  #dragging = false;
   #running = false;
   /** Значения HUD замаскированы: правка картинки извне видна по контрольной сумме. */
   readonly #guarded = {
@@ -172,12 +176,16 @@ export class GamePresenter {
     } else {
       this.#selected = new Set([planetId]);
     }
+    this.#dragging = true;
+    this.#cursor = { x: planet.x, y: planet.y };
     this.#view.playSelect();
     this.render();
   }
 
   /** Снять выбор (клик по пустому месту). */
   clearSelection(): void {
+    this.#dragging = false;
+    this.#cursor = null;
     if (this.#selected.size === 0) return;
     this.#selected.clear();
     this.render();
@@ -189,10 +197,19 @@ export class GamePresenter {
     this.render();
   }
 
+  /** Движение с зажатой ЛКМ: стрелка тянется за курсором. */
+  pointerMove(x: number, y: number, planetId: PlanetId | null): void {
+    this.#cursor = { x, y };
+    this.#hover = planetId;
+    this.render();
+  }
+
   /** Отпускание: если есть выбор и цель — отправить флот. */
   pointerUp(): CommandResult | null {
     const target = this.#hover;
     this.#hover = null;
+    this.#dragging = false;
+    this.#cursor = null;
     if (target === null) {
       this.render();
       return null;
@@ -364,6 +381,11 @@ export class GamePresenter {
       ownerId: planet.ownerId,
       garrison: garrisonOf(planet),
       selected: this.#selected.has(planet.id),
+      highlighted:
+        this.#dragging &&
+        this.#hover === planet.id &&
+        this.#selected.size > 0 &&
+        !this.#selected.has(planet.id),
       mine: planet.ownerId === this.#playerId && tick < 20 * 10,
       boosts: {
         production: boostRemainingTicks(planet, 'production', tick) / TICKS_PER_SECOND,
@@ -374,23 +396,28 @@ export class GamePresenter {
   }
 
   #arrowViews(state: GameState, tick: number): ArrowView[] {
+    if (this.#selected.size === 0) return [];
     const targetId = this.#hover;
-    if (targetId === null || this.#selected.size === 0) return [];
-    const target = state.planets[targetId];
-    if (!target || this.#selected.has(targetId)) return [];
+    const target = targetId !== null ? state.planets[targetId] : undefined;
+    // Пока ЛКМ зажата — конец стрелки у курсора; над планетой — прилипает к ней.
+    const end = target ?? this.#cursor;
+    if (!end) return [];
+    if (!this.#dragging && targetId === null) return [];
+
     const arrows: ArrowView[] = [];
     for (const sourceId of this.#selected) {
       const source = state.planets[sourceId];
       if (!source) continue;
+      if (targetId !== null && sourceId === targetId) continue;
       const ticks = flightTicks(
-        distance(source.x, source.y, target.x, target.y),
+        distance(source.x, source.y, end.x, end.y),
         speedUnitsPerSecond(source, tick, this.#balance),
       );
       arrows.push({
         fromX: source.x,
         fromY: source.y,
-        toX: target.x,
-        toY: target.y,
+        toX: end.x,
+        toY: end.y,
         travelSeconds: ticks / TICKS_PER_SECOND,
         valid: this.#canSend(source),
       });

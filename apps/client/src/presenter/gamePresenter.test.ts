@@ -355,6 +355,42 @@ describe('перехват флотов', () => {
   });
 });
 
+describe('резиновая стрелка', () => {
+  it('появляется сразу после нажатия и тянется за курсором', () => {
+    const { presenter, view } = setup();
+    presenter.pointerDown(0);
+    presenter.pointerMove(500, 300, null);
+
+    const arrows = view.last?.arrows ?? [];
+    expect(arrows).toHaveLength(1);
+    expect(arrows[0]?.toX).toBe(500);
+    expect(arrows[0]?.toY).toBe(300);
+  });
+
+  it('над планетой прилипает к цели и рисует контур', () => {
+    const { presenter, view, source } = setup();
+    const enemy = source.sim.state.planets.find((planet) => planet.ownerId === 1);
+    if (!enemy) throw new Error('нет вражеской планеты');
+
+    presenter.pointerDown(0);
+    presenter.pointerMove(enemy.x + 3, enemy.y - 2, enemy.id);
+
+    const board = view.last;
+    expect(board?.arrows[0]?.toX).toBe(enemy.x);
+    expect(board?.arrows[0]?.toY).toBe(enemy.y);
+    expect(board?.planets.find((planet) => planet.id === enemy.id)?.highlighted).toBe(true);
+  });
+
+  it('после отпускания предпросмотр исчезает', () => {
+    const { presenter, view } = setup();
+    presenter.pointerDown(0);
+    presenter.pointerMove(500, 300, null);
+    presenter.pointerUp();
+
+    expect(view.last?.arrows).toHaveLength(0);
+  });
+});
+
 describe('бусты', () => {
   it('применяет буст к выбранной планете и просит эффект', () => {
     const { presenter, view, source } = setup();
