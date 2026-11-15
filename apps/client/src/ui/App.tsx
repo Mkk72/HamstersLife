@@ -10,10 +10,13 @@ export interface AppProps {
   readonly board: () => BoardView | null;
   readonly ratio: () => Ratio;
   readonly quality: () => QualityLevel;
+  readonly mapChoice: () => string;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
+  readonly onMap: (choice: string) => void;
   readonly onRestart: () => void;
+  readonly onDownloadReplay: () => void;
 }
 
 export function App(props: AppProps) {
@@ -34,10 +37,13 @@ export function App(props: AppProps) {
         ratio={props.ratio}
         quality={props.quality}
         fps={fps}
+        mapChoice={props.mapChoice}
         onRatio={props.onRatio}
         onBoost={props.onBoost}
         onQuality={props.onQuality}
+        onMap={props.onMap}
         onRestart={props.onRestart}
+        onDownloadReplay={props.onDownloadReplay}
       />
       <Show when={props.board()?.hud.outcome}>
         {(outcome) => <OutcomeOverlay outcome={outcome()} onRestart={props.onRestart} />}

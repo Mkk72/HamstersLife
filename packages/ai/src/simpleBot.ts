@@ -90,39 +90,47 @@ export class SimpleBot implements Bot {
   #decideAttack(state: Readonly<GameState>, playerId: PlayerId): Command | null {
     const own = state.planets
       .filter((planet) => planet.ownerId === playerId)
-      .filter((planet) => planet.garrison >= this.#options.minAttackGarrison)
-      .sort((a, b) => b.garrison - a.garrison);
+      .filter((planet) => planet.garrison >= this.#options.minAttackGarrison);
+    if (own.length === 0) return null;
 
-    const targets = state.planets.filter((planet) => planet.ownerId !== playerId);
-    if (targets.length === 0) return null;
-
-    for (const source of own) {
-      const troops = Math.floor((source.garrison * this.#options.attackRatio) / 100);
-      if (troops <= 0) continue;
-
-      let best: { target: Planet; score: number } | null = null;
-      for (const target of targets) {
+    const candidates = state.planets
+      .filter((planet) => planet.ownerId !== playerId)
+      .map((target) => {
         const force = defenseForce(
           target.garrison,
           defensePermille(target, state.tick, this.#balance),
         );
-        if (troops <= force * this.#options.attackMargin) continue;
-
         const value = SIZE_VALUE[target.size] * (target.ownerId === -1 ? 1.2 : 1.5);
-        const travel = distance(source.x, source.y, target.x, target.y) + 1;
-        const score = value / travel;
-        if (!best || score > best.score) best = { target, score };
+        return { target, force, value };
+      })
+      .sort((a, b) => b.value - a.value);
+
+    for (const candidate of candidates) {
+      const need = candidate.force * this.#options.attackMargin;
+      const sources: Planet[] = [];
+      let troops = 0;
+
+      const byDistance = [...own].sort(
+        (a, b) =>
+          distance(a.x, a.y, candidate.target.x, candidate.target.y) -
+          distance(b.x, b.y, candidate.target.x, candidate.target.y),
+      );
+
+      for (const source of byDistance) {
+        if (troops > need) break;
+        sources.push(source);
+        troops += Math.floor((source.garrison * this.#options.attackRatio) / 100);
       }
 
-      if (best) {
-        return {
-          type: 'SendFleet',
-          playerId,
-          fromPlanetIds: [source.id],
-          toPlanetId: best.target.id,
-          ratio: this.#options.attackRatio,
-        };
-      }
+      if (troops <= need || sources.length === 0) continue;
+
+      return {
+        type: 'SendFleet',
+        playerId,
+        fromPlanetIds: sources.map((source) => source.id),
+        toPlanetId: candidate.target.id,
+        ratio: this.#options.attackRatio,
+      };
     }
 
     return null;

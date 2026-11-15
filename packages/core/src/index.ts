@@ -9,6 +9,7 @@ export * from './state';
 export * from './commands';
 export * from './systems';
 export * from './tick';
+export * from './replay';
 export * from './hash';
 export * from './ports';
 export * from './simulation';

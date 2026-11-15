@@ -3,7 +3,8 @@
  * интерфейс вида (`GameView`), поэтому презентер не знает ни о Pixi, ни о
  * масштабе карты. Слои (фон, планеты, флоты, эффекты) — отдельные классы.
  */
-import type { BoostKind, ContentProvider, PlanetId } from '@hamsters/core';
+import type { MapDefinition } from '@hamsters/core';
+import type { BoostKind, PlanetId } from '@hamsters/core';
 import { Application, Container } from 'pixi.js';
 import { Sfx } from '../audio/sfx';
 import type { BoardView, GameView, QualityLevel } from '../presenter/viewModel';
@@ -35,8 +36,8 @@ export class GameScene implements GameView {
   readonly #effectsLayer = new EffectsLayer();
   readonly #starfield: Starfield;
   readonly #sfx = new Sfx();
-  readonly #mapWidth: number;
-  readonly #mapHeight: number;
+  #mapWidth: number;
+  #mapHeight: number;
   readonly #onBoard: ((view: BoardView) => void) | undefined;
   #quality: QualityLevel = 'high';
   #pulses: Pulse[] = [];
@@ -45,9 +46,8 @@ export class GameScene implements GameView {
   #baseY = 0;
   #shakeUntil = 0;
 
-  constructor(app: Application, content: ContentProvider, options: GameSceneOptions = {}) {
+  constructor(app: Application, map: MapDefinition, options: GameSceneOptions = {}) {
     this.app = app;
-    const map = content.getMap(content.defaultMapName);
     this.#mapWidth = map.width;
     this.#mapHeight = map.height;
     this.#onBoard = options.onBoard;
@@ -76,6 +76,13 @@ export class GameScene implements GameView {
       this.#tickPulses(time);
       this.#applyShake(time);
     });
+  }
+
+  /** Сменить карту перед новым матчем: пересчитывает масштаб. */
+  setMap(map: MapDefinition): void {
+    this.#mapWidth = map.width;
+    this.#mapHeight = map.height;
+    this.fit();
   }
 
   /** Разбудить звук — вызывать на первом действии пользователя. */

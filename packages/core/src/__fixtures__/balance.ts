@@ -7,6 +7,7 @@ import type { Balance } from '../types';
 
 export const testBalance: Balance = {
   rulesVersion: 1,
+  contentVersion: 1,
   planetSizes: {
     S: { capacity: 6000, productionPerSecond: 600 },
     M: { capacity: 12_000, productionPerSecond: 1000 },

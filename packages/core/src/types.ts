@@ -79,6 +79,8 @@ export interface BoostStats {
 
 export interface Balance {
   readonly rulesVersion: number;
+  /** Версия набора данных: меняется при правке баланса или карт. */
+  readonly contentVersion: number;
   readonly planetSizes: Readonly<Record<PlanetSize, SizeStats>>;
   /** Скорость флотов в целых единицах карты за секунду. */
   readonly flightSpeedUnitsPerSecond: number;

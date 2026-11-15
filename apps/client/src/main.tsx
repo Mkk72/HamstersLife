@@ -1,7 +1,8 @@
 import { CONTENT, getMap } from '@hamsters/content';
 import { SimpleBot } from '@hamsters/ai';
 import { Simulation } from '@hamsters/core';
-import type { BoostKind, Ratio } from '@hamsters/core';
+import type { BoostKind, MapDefinition, Ratio } from '@hamsters/core';
+import { generateDuelMap } from '@hamsters/levelgen';
 import { Application } from 'pixi.js';
 import { createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
@@ -12,6 +13,8 @@ import { GamePresenter } from './presenter/gamePresenter';
 import type { BoardView, QualityLevel } from './presenter/viewModel';
 import { GameScene } from './render/gameScene';
 import { THEME } from './render/theme';
+import { MatchRecorder } from './replay/matchRecorder';
+import { RecordingSimSource } from './replay/recordingSimSource';
 import { LocalSimSource } from './sim/localSimSource';
 import { BrowserScheduler } from './sim/scheduler';
 import { App } from './ui/App';
@@ -34,19 +37,38 @@ host.appendChild(app.canvas);
 const [board, setBoard] = createSignal<BoardView | null>(null);
 const [ratio, setRatio] = createSignal<Ratio>(50);
 const [quality, setQuality] = createSignal<QualityLevel>('high');
+const [mapChoice, setMapChoice] = createSignal('arena-duel');
 
-const scene = new GameScene(app, CONTENT, { onBoard: (view) => setBoard(view) });
+const scene = new GameScene(app, getMap(CONTENT.defaultMapName), {
+  onBoard: (view) => setBoard(view),
+});
 
 let presenter: GamePresenter | null = null;
 let botRunner: BotRunner | null = null;
+let recorder: MatchRecorder | null = null;
 let matchCounter = 0;
 
-function startMatch(): void {
+function mapFor(choice: string, seed: number): MapDefinition {
+  return choice === 'random' ? generateDuelMap(seed) : getMap(CONTENT.defaultMapName);
+}
+
+function startMatch(choice: string = mapChoice()): void {
   presenter?.stop();
   botRunner?.stop();
   matchCounter += 1;
-  const sim = new Simulation(getMap(CONTENT.defaultMapName), CONTENT.balance, matchCounter * 7919);
-  const source = new LocalSimSource(sim, new BrowserScheduler());
+  const seed = matchCounter * 7919 + (Date.now() % 1000);
+  const map = mapFor(choice, seed);
+  scene.setMap(map);
+
+  const sim = new Simulation(map, CONTENT.balance, seed);
+  recorder = new MatchRecorder({
+    rulesVersion: CONTENT.balance.rulesVersion,
+    contentVersion: CONTENT.balance.contentVersion,
+    seed,
+    mapName: map.name,
+  });
+  const source = new RecordingSimSource(new LocalSimSource(sim, new BrowserScheduler()), recorder);
+
   presenter = new GamePresenter({
     sim: source,
     view: scene,
@@ -56,8 +78,20 @@ function startMatch(): void {
   });
   presenter.setQuality(quality());
   presenter.start();
+
   botRunner = new BotRunner(source, new SimpleBot(CONTENT.balance), 1, new BrowserScheduler());
   botRunner.start();
+}
+
+function downloadReplay(): void {
+  if (!recorder || recorder.size === 0) return;
+  const blob = new Blob([recorder.toJson()], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `hamsters-replay-${recorder.toReplay().seed}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 const pointer = new PointerInput(app.canvas, scene, () => presenter);
@@ -79,6 +113,7 @@ render(
       board={board}
       ratio={ratio}
       quality={quality}
+      mapChoice={mapChoice}
       onRatio={(value) => {
         setRatio(value);
         presenter?.setRatio(value);
@@ -88,7 +123,12 @@ render(
         setQuality(value);
         presenter?.setQuality(value);
       }}
-      onRestart={startMatch}
+      onMap={(choice) => {
+        setMapChoice(choice);
+        startMatch(choice);
+      }}
+      onRestart={() => startMatch()}
+      onDownloadReplay={downloadReplay}
     />
   ),
   host,

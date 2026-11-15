@@ -14,6 +14,7 @@
     "@hamsters/ai": "workspace:*",
     "@hamsters/content": "workspace:*",
     "@hamsters/core": "workspace:*",
+    "@hamsters/levelgen": "workspace:*",
     "pixi.js": "8.23.0",
     "solid-js": "1.9.19"
   },

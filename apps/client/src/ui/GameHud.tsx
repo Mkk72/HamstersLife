@@ -12,6 +12,11 @@ const QUALITIES: readonly { value: QualityLevel; label: string }[] = [
   { value: 'high', label: 'Высокое' },
 ];
 
+const MAP_OPTIONS: readonly { value: string; label: string }[] = [
+  { value: 'arena-duel', label: 'Арена' },
+  { value: 'random', label: 'Случайная' },
+];
+
 const BOOST_LABEL: Readonly<Record<BoostKind, string>> = {
   production: 'Колесо',
   speed: 'Щёки',
@@ -23,10 +28,13 @@ export interface GameHudProps {
   readonly ratio: () => Ratio;
   readonly quality: () => QualityLevel;
   readonly fps: () => number;
+  readonly mapChoice: () => string;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
+  readonly onMap: (choice: string) => void;
   readonly onRestart: () => void;
+  readonly onDownloadReplay: () => void;
 }
 
 /** HUD: семечки, контроль карты, доли, бусты, качество, подсказка. */
@@ -63,6 +71,16 @@ export function GameHud(props: GameHudProps) {
         <div class="top-actions">
           <select
             class="select"
+            aria-label="Карта"
+            value={props.mapChoice()}
+            onChange={(event) => props.onMap(event.currentTarget.value)}
+          >
+            <For each={MAP_OPTIONS}>
+              {(item) => <option value={item.value}>{item.label}</option>}
+            </For>
+          </select>
+          <select
+            class="select"
             aria-label="Качество графики"
             value={props.quality()}
             onChange={(event) => props.onQuality(event.currentTarget.value as QualityLevel)}
@@ -71,6 +89,9 @@ export function GameHud(props: GameHudProps) {
               {(item) => <option value={item.value}>{item.label}</option>}
             </For>
           </select>
+          <button class="button" type="button" title="Скачать повтор матча" onClick={props.onDownloadReplay}>
+            Повтор
+          </button>
           <button class="button" type="button" onClick={props.onRestart}>
             Новый матч
           </button>

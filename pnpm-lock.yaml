@@ -38,6 +38,9 @@ importers:
       '@hamsters/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@hamsters/levelgen':
+        specifier: workspace:*
+        version: link:../../packages/levelgen
       pixi.js:
         specifier: 8.23.0
         version: 8.23.0
@@ -72,6 +75,16 @@ importers:
         version: 4.6.7
 
   packages/core: {}
+
+  packages/levelgen:
+    dependencies:
+      '@hamsters/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@hamsters/content':
+        specifier: workspace:*
+        version: link:../content
 
 packages:
 

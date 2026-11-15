@@ -24,6 +24,7 @@ export const boostStatsSchema = z.strictObject({
 
 export const balanceSchema = z.strictObject({
   rulesVersion: z.number().int().positive(),
+  contentVersion: z.number().int().positive(),
   planetSizes: z.strictObject({
     S: sizeStatsSchema,
     M: sizeStatsSchema,
