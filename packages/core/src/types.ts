@@ -6,6 +6,7 @@ export const NEUTRAL_OWNER = -1;
 export type PlayerId = number;
 export type PlanetId = number;
 export type FleetId = number;
+export type RouteId = number;
 
 export type PlanetSize = 'S' | 'M' | 'L' | 'XL';
 
@@ -43,6 +44,20 @@ export interface Fleet {
   readonly arriveTick: Tick;
 }
 
+/**
+ * Постоянный маршрут переброски: стрелка, которая живёт, пока её не отрежут.
+ * `weightPermille` — выбранная доля (250…1000), `pending` — накопленные
+ * milli-единицы, ещё не превратившиеся в отряд (минимум 1 хомяк).
+ */
+export interface Route {
+  readonly id: RouteId;
+  readonly ownerId: PlayerId;
+  readonly fromPlanetId: PlanetId;
+  readonly toPlanetId: PlanetId;
+  weightPermille: number;
+  pending: MilliUnits;
+}
+
 export interface PlayerState {
   readonly id: PlayerId;
   seeds: MilliUnits;
@@ -57,8 +72,10 @@ export interface GameState {
   readonly rulesVersion: number;
   readonly planets: Planet[];
   readonly fleets: Fleet[];
+  readonly routes: Route[];
   readonly players: PlayerState[];
   nextFleetId: FleetId;
+  nextRouteId: RouteId;
 }
 
 export interface SizeStats {
@@ -90,6 +107,8 @@ export interface Balance {
   readonly boosts: Readonly<Record<BoostKind, BoostStats>>;
   /** Минимальный гарнизон после захвата. */
   readonly minCaptureGarrison: MilliUnits;
+  /** Сколько постоянных маршрутов можно держать с одной планеты. */
+  readonly maxRoutesPerPlanet: number;
 }
 
 /** Планета в описании карты: данные, а не состояние. */
@@ -126,6 +145,11 @@ export type Command =
       readonly playerId: PlayerId;
       readonly planetId: PlanetId;
       readonly boost: BoostKind;
+    }
+  | {
+      readonly type: 'RemoveRoute';
+      readonly playerId: PlayerId;
+      readonly routeId: RouteId;
     };
 
 export type CommandErrorCode =
@@ -137,7 +161,10 @@ export type CommandErrorCode =
   | 'no-troops'
   | 'invalid-ratio'
   | 'not-enough-seeds'
-  | 'cooldown';
+  | 'cooldown'
+  | 'too-many-routes'
+  | 'unknown-route'
+  | 'not-your-route';
 
 export type CommandResult =
   | { readonly ok: true; readonly fleetIds?: readonly FleetId[] }

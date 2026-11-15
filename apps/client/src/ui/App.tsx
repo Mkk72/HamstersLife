@@ -14,10 +14,12 @@ export interface AppProps {
   readonly mapChoice: () => string;
   readonly started: () => boolean;
   readonly audioEnabled: () => boolean;
+  readonly speed: () => number;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
+  readonly onSpeed: (speed: number) => void;
   readonly onStart: () => void;
   readonly onAudio: (enabled: boolean) => void;
   readonly onRestart: () => void;
@@ -50,10 +52,12 @@ export function App(props: AppProps) {
           fps={fps}
           mapChoice={props.mapChoice}
           audioEnabled={props.audioEnabled}
+          speed={props.speed}
           onRatio={props.onRatio}
           onBoost={props.onBoost}
           onQuality={props.onQuality}
           onMap={props.onMap}
+          onSpeed={props.onSpeed}
           onAudio={props.onAudio}
           onRestart={props.onRestart}
           onDownloadReplay={props.onDownloadReplay}

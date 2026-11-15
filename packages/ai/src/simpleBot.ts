@@ -61,11 +61,24 @@ export class SimpleBot implements Bot {
     this.#lastDecisionTick = state.tick;
 
     const commands: Command[] = [];
+    const cleanup = this.#decideCleanup(state, playerId);
+    if (cleanup) commands.push(cleanup);
     const boost = this.#decideBoost(state, playerId);
     if (boost) commands.push(boost);
     const attack = this.#decideAttack(state, playerId);
     if (attack) commands.push(attack);
     return commands;
+  }
+
+  /** Маршрут, который кормит уже свою планету, только мешает — отрезаем. */
+  #decideCleanup(state: Readonly<GameState>, playerId: PlayerId): Command | null {
+    const route = state.routes.find(
+      (candidate) =>
+        candidate.ownerId === playerId &&
+        state.planets[candidate.toPlanetId]?.ownerId === playerId,
+    );
+    if (!route) return null;
+    return { type: 'RemoveRoute', playerId, routeId: route.id };
   }
 
   #decideBoost(state: Readonly<GameState>, playerId: PlayerId): Command | null {

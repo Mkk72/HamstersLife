@@ -40,6 +40,7 @@ export const balanceSchema = z.strictObject({
     defense: boostStatsSchema,
   }),
   minCaptureGarrison: z.number().int().positive(),
+  maxRoutesPerPlanet: z.number().int().positive(),
 });
 
 export const mapPlanetSchema = z.strictObject({

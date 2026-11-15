@@ -148,18 +148,22 @@ describe('SendFleet', () => {
     ).toEqual({ ok: false, error: 'invalid-ratio' });
   });
 
-  it('отказывает: отряд меньше одного хомяка не формируется', () => {
+  it('создаёт маршрут даже если сейчас отряд меньше хомяка', () => {
     const state = freshMapThree();
     const planet = getPlanet(state, 0);
     if (!planet) throw new Error('нет планеты');
     planet.garrison = 1000;
-    expect(
-      applyCommand(
-        state,
-        { type: 'SendFleet', playerId: 0, fromPlanetIds: [0], toPlanetId: 1, ratio: 25 },
-        testBalance,
-      ),
-    ).toEqual({ ok: false, error: 'no-troops' });
+    const result = applyCommand(
+      state,
+      { type: 'SendFleet', playerId: 0, fromPlanetIds: [0], toPlanetId: 1, ratio: 25 },
+      testBalance,
+    );
+    // отряд не сформирован, но стрелка поставлена: дальше пойдёт производство
+    expect(result).toEqual({ ok: true, fleetIds: [] });
+    expect(state.fleets).toHaveLength(0);
+    expect(state.routes).toHaveLength(1);
+    expect(state.routes[0]?.weightPermille).toBe(250);
+    expect(getPlanet(state, 0)?.garrison).toBe(1000);
   });
 
   it('отказывает выбывшему игроку', () => {

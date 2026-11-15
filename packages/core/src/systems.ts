@@ -5,11 +5,14 @@
  * контракт детерминизма, поэтому меняется только с повышением `rulesVersion`.
  */
 import { resolveBattle, resolveCapture } from './combat';
+import { MIN_FLEET_SIZE } from './combat';
 import { clearBoosts } from './boosts';
+import { launchFleet } from './fleets';
 import { defensePermille, productionPerTick, seedsPerTick } from './modifiers';
 import { hasForces } from './state';
-import type { Balance, Fleet, GameState, PlanetId, PlayerId } from './types';
+import type { Balance, Fleet, GameState, PlanetId, PlayerId, Route } from './types';
 import { NEUTRAL_OWNER } from './types';
+import { PERMILLE, mulPermille } from './units';
 
 export interface TickContext {
   readonly tick: number;
@@ -18,16 +21,87 @@ export interface TickContext {
 
 export type TickSystem = (state: GameState, context: TickContext) => void;
 
-/** 1. Свои планеты растут, пока не упрутся во вместимость. */
+/**
+ * 1. Рост планет и постоянные маршруты.
+ *
+ * Если у планеты есть живые маршруты, часть производства уходит в них:
+ *  - ниже вместимости экспортируется доля `min(100%, Σвесов)`;
+ *  - на вместимости экспортируется всё производство.
+ * Между маршрутами экспорт делится пропорционально весам (три по 50% → по 1/3).
+ * Накопленные milli-единицы превращаются в отряд, когда набирается 1 хомяк.
+ */
 export const productionSystem: TickSystem = (state, context) => {
   for (const planet of state.planets) {
     if (planet.ownerId === NEUTRAL_OWNER) continue;
     const capacity = context.balance.planetSizes[planet.size].capacity;
-    if (planet.garrison >= capacity) continue;
-    const grown = planet.garrison + productionPerTick(planet, context.tick, context.balance);
-    planet.garrison = Math.min(capacity, grown);
+    const produced = productionPerTick(planet, context.tick, context.balance);
+    const routes = state.routes.filter(
+      (route) => route.fromPlanetId === planet.id && route.ownerId === planet.ownerId,
+    );
+
+    if (routes.length === 0) {
+      planet.garrison = Math.min(capacity, planet.garrison + produced);
+      continue;
+    }
+
+    const sumWeights = routes.reduce((sum, route) => sum + route.weightPermille, 0);
+    let exported: number;
+    if (planet.garrison >= capacity) {
+      exported = produced;
+      planet.garrison = capacity;
+    } else {
+      exported = mulPermille(produced, Math.min(PERMILLE, sumWeights));
+      planet.garrison = Math.min(capacity, planet.garrison + produced - exported);
+    }
+    distributeExported(routes, exported, sumWeights);
   }
+
+  flushRoutes(state, context);
 };
+
+/** Раздать экспорт по маршрутам без потери milli-единиц (крупнейшие остатки). */
+function distributeExported(
+  routes: readonly Route[],
+  exported: number,
+  sumWeights: number,
+): void {
+  if (exported <= 0 || sumWeights <= 0) return;
+
+  const parts = routes.map((route) => {
+    const exact = exported * route.weightPermille;
+    return { route, share: Math.floor(exact / sumWeights), remainder: exact % sumWeights };
+  });
+
+  const assigned = parts.reduce((sum, part) => sum + part.share, 0);
+  let left = exported - assigned;
+  parts.sort((a, b) => b.remainder - a.remainder || a.route.id - b.route.id);
+
+  let index = 0;
+  while (left > 0 && parts.length > 0) {
+    const part = parts[index % parts.length];
+    if (!part) break;
+    part.share += 1;
+    left -= 1;
+    index += 1;
+  }
+
+  for (const part of parts) part.route.pending += part.share;
+}
+
+/** Маршруты, накопившие хотя бы одного хомяка, выпускают отряд. */
+function flushRoutes(state: GameState, context: TickContext): void {
+  for (const route of state.routes) {
+    if (route.pending < MIN_FLEET_SIZE) continue;
+    const from = state.planets[route.fromPlanetId];
+    if (!from || from.ownerId !== route.ownerId) {
+      route.pending = 0;
+      continue;
+    }
+    const troops = route.pending;
+    route.pending = 0;
+    launchFleet(state, context.balance, route.ownerId, from, route.toPlanetId, troops);
+  }
+}
 
 /** 2. Семечки капают с каждой своей планеты живому игроку. */
 export const seedsSystem: TickSystem = (state, context) => {
@@ -133,8 +207,20 @@ function resolveArrivals(
       planet.ownerId = incumbent.ownerId;
       planet.garrison = outcome.garrison;
       clearBoosts(planet);
+      // Маршруты прежнего владельца сгорают вместе с планетой.
+      removeRoutesForPlanet(state, planet.id);
     } else {
       planet.garrison = outcome.garrison;
+    }
+  }
+}
+
+function removeRoutesForPlanet(state: GameState, planetId: PlanetId): void {
+  for (let index = state.routes.length - 1; index >= 0; index -= 1) {
+    const route = state.routes[index];
+    if (!route) continue;
+    if (route.fromPlanetId === planetId || route.toPlanetId === planetId) {
+      state.routes.splice(index, 1);
     }
   }
 }

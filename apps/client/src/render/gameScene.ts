@@ -11,6 +11,7 @@ import type { BoardView, GameView, QualityLevel } from '../presenter/viewModel';
 import { ArrowLayer } from './arrowLayer';
 import { EffectsLayer } from './effectsLayer';
 import { FleetLayer } from './fleetLayer';
+import { distanceToSegment } from './geometry';
 import { PlanetLayer } from './planetLayer';
 import { Starfield } from './starfield';
 import { WORLD_PADDING, colorForOwner } from './theme';
@@ -104,7 +105,7 @@ export class GameScene implements GameView {
 
   render(view: BoardView): void {
     this.#board = view;
-    this.#arrowLayer.update(view.arrows);
+    this.#arrowLayer.update(view.routes, view.arrows);
     this.#planetLayer.update(view.planets);
     this.#fleetLayer.update(view.fleets);
     this.#onBoard?.(view);
@@ -153,10 +154,33 @@ export class GameScene implements GameView {
     else this.#sfx.defeat();
   }
 
+  playCut(): void {
+    this.#sfx.cut();
+  }
   /** Планета под экранной точкой — для ввода. */
   hitTest(screenX: number, screenY: number): PlanetId | null {
     const point = this.world.toLocal({ x: screenX, y: screenY });
     return this.#planetLayer.hitTest(point.x, point.y);
+  }
+
+  /** Маршрут под экранной точкой — для резки ПКМ. */
+  hitTestRoute(screenX: number, screenY: number): number | null {
+    if (!this.#board) return null;
+    const point = this.world.toLocal({ x: screenX, y: screenY });
+    let best: { id: number; distance: number } | null = null;
+    for (const route of this.#board.routes) {
+      const distance = distanceToSegment(
+        point.x,
+        point.y,
+        route.fromX,
+        route.fromY,
+        route.toX,
+        route.toY,
+      );
+      if (distance > 14) continue;
+      if (!best || distance < best.distance) best = { id: route.id, distance };
+    }
+    return best?.id ?? null;
   }
 
   get board(): BoardView | null {

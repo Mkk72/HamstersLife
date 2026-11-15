@@ -57,6 +57,7 @@ export class GamePresenter {
   #owners = new Map<PlanetId, PlayerId>();
   #ratio: Ratio;
   #quality: QualityLevel = 'high';
+  #speed = 1;
   #running = false;
   /** Значения HUD замаскированы: правка картинки извне видна по контрольной сумме. */
   readonly #guarded = {
@@ -114,6 +115,29 @@ export class GamePresenter {
 
   get quality(): QualityLevel {
     return this.#quality;
+  }
+
+  /** Скорость игры: 0 — пауза, 1 — обычная, 2 — быстрее. */
+  setSpeed(speed: number): void {
+    this.#speed = speed;
+    this.#sim.setSpeed(speed);
+  }
+
+  get speed(): number {
+    return this.#speed;
+  }
+
+  /** Отрезать постоянный маршрут (ПКМ-протяжка). */
+  cutRoute(routeId: number): CommandResult | null {
+    const result = this.#sim.sendCommand({
+      type: 'RemoveRoute',
+      playerId: this.#playerId,
+      routeId,
+    });
+    if (result.ok) this.#view.playCut();
+    else this.#view.playError();
+    this.render();
+    return result;
   }
 
   /** Нажатие на планету: своя — выбор, чужая — цель (если что-то выбрано). */
@@ -225,6 +249,20 @@ export class GamePresenter {
           toY: to?.y ?? 0,
           progress,
           troops: fleet.troops,
+        };
+      }),
+      routes: state.routes.map((route) => {
+        const from = state.planets[route.fromPlanetId];
+        const to = state.planets[route.toPlanetId];
+        return {
+          id: route.id,
+          ownerId: route.ownerId,
+          fromX: from?.x ?? 0,
+          fromY: from?.y ?? 0,
+          toX: to?.x ?? 0,
+          toY: to?.y ?? 0,
+          weightPermille: route.weightPermille,
+          pending: route.pending,
         };
       }),
       arrows: this.#arrowViews(state, tick),

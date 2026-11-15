@@ -32,6 +32,10 @@ export class Sfx {
     this.#tone(740, 0.04, 'sine', 0.028);
   }
 
+  cut(): void {
+    this.#sweep(680, 220, 0.14, 0.04);
+  }
+
   victory(): void {
     [523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
       this.#tone(frequency, 0.2, 'triangle', 0.05, index * 0.12);

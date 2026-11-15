@@ -7,8 +7,7 @@ import type { Balance } from '../types';
 
 export const testBalance: Balance = {
   rulesVersion: 1,
-  contentVersion: 1,
-  planetSizes: {
+  contentVersion: 1,  planetSizes: {
     S: { capacity: 6000, productionPerSecond: 600 },
     M: { capacity: 12_000, productionPerSecond: 1000 },
     L: { capacity: 24_000, productionPerSecond: 1600 },
@@ -23,4 +22,5 @@ export const testBalance: Balance = {
     defense: { cost: 50_000, durationTicks: 240, cooldownTicks: 600, factorPermille: 1800 },
   },
   minCaptureGarrison: 1000,
+  maxRoutesPerPlanet: 4,
 };

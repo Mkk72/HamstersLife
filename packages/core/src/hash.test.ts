@@ -42,11 +42,33 @@ describe('детерминизм', () => {
   });
 
   it('хэш меняется от изменения одной команды', () => {
-    const changed: readonly Command[] = [
-      { type: 'SendFleet', playerId: 0, fromPlanetIds: [0], toPlanetId: 3, ratio: 25 },
+    const boostDifferentPlanet: readonly Command[] = [
+      { type: 'ApplyBoost', playerId: 0, planetId: 0, boost: 'production' },
       ...trainingLog.slice(1),
     ];
-    expect(runScenario(2024, trainingLog)).not.toBe(runScenario(2024, changed));
+    expect(runScenario(2024, trainingLog)).not.toBe(runScenario(2024, boostDifferentPlanet));
+  });
+
+  it('хэш учитывает маршруты и их вес', () => {
+    const first = createGameState(mapFour, testBalance, 3);
+    const second = createGameState(mapFour, testBalance, 3);
+    first.routes.push({
+      id: 1,
+      ownerId: 0,
+      fromPlanetId: 0,
+      toPlanetId: 3,
+      weightPermille: 500,
+      pending: 0,
+    });
+    second.routes.push({
+      id: 1,
+      ownerId: 0,
+      fromPlanetId: 0,
+      toPlanetId: 3,
+      weightPermille: 250,
+      pending: 0,
+    });
+    expect(hashState(first)).not.toBe(hashState(second));
   });
 
   it('хэш — 32-битное беззнаковое число в hex из восьми знаков', () => {

@@ -45,6 +45,7 @@ const [quality, setQuality] = createSignal<QualityLevel>('high');
 const [mapChoice, setMapChoice] = createSignal(params.get('map') ?? 'arena-duel');
 const [started, setStarted] = createSignal(false);
 const [audioEnabled, setAudioEnabled] = createSignal(true);
+const [speed, setSpeed] = createSignal(1);
 
 const scene = new GameScene(app, getMap(CONTENT.defaultMapName), {
   onBoard: (view) => setBoard(view),
@@ -118,6 +119,7 @@ function startMatch(choice: string = mapChoice()): void {
     initialRatio: ratio(),
   });
   presenter.setQuality(quality());
+  presenter.setSpeed(speed());
   presenter.start();
 
   for (let playerId = 1; playerId < map.playerCount; playerId += 1) {
@@ -127,6 +129,7 @@ function startMatch(choice: string = mapChoice()): void {
       playerId,
       new BrowserScheduler(),
     );
+    runner.setSpeed(speed());
     runner.start();
     bots.push(runner);
   }
@@ -169,6 +172,7 @@ render(
       mapChoice={mapChoice}
       started={started}
       audioEnabled={audioEnabled}
+      speed={speed}
       onRatio={(value) => {
         setRatio(value);
         presenter?.setRatio(value);
@@ -182,6 +186,11 @@ render(
         setMapChoice(choice);
         // В меню выбор только запоминается; в игре — начинается новый матч.
         if (started()) startMatch(choice);
+      }}
+      onSpeed={(value) => {
+        setSpeed(value);
+        presenter?.setSpeed(value);
+        for (const bot of bots) bot.setSpeed(value);
       }}
       onStart={() => {
         scene.unlockAudio();

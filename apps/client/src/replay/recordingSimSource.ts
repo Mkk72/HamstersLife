@@ -27,6 +27,10 @@ export class RecordingSimSource implements SimSource {
     this.#source.stop();
   }
 
+  setSpeed(speed: number): void {
+    this.#source.setSpeed(speed);
+  }
+
   sendCommand(command: Command): CommandResult {
     const result = this.#source.sendCommand(command);
     if (result.ok) {

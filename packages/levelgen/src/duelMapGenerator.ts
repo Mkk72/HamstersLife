@@ -90,7 +90,7 @@ export class DuelMapGenerator implements MapGenerator {
       if (!this.#canPlace(planets, x, y, minDistance, startClearance)) continue;
 
       const size = NEUTRAL_SIZES[rng.nextInt(0, NEUTRAL_SIZES.length)] ?? 'S';
-      const garrison = rng.nextIntInclusive(4, 6);
+      const garrison = rng.nextIntInclusive(6, 9);
       this.#addNeutral(planets, size, x, y, garrison);
       this.#addNeutral(planets, size, width - x, y, garrison);
     }
@@ -111,7 +111,7 @@ export class DuelMapGenerator implements MapGenerator {
       if (!this.#canPlace(planets, x, y, minDistance, startClearance)) continue;
 
       const size = NEUTRAL_SIZES[rng.nextInt(0, NEUTRAL_SIZES.length)] ?? 'S';
-      const garrison = rng.nextIntInclusive(4, 6);
+      const garrison = rng.nextIntInclusive(6, 9);
       for (const corner of [
         { x, y },
         { x: width - x, y },

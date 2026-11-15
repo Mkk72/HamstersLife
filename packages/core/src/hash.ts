@@ -24,8 +24,10 @@ export function hashState(state: GameState): number {
   hash = mix(hash, state.seed);
   hash = mix(hash, state.tick);
   hash = mix(hash, state.nextFleetId);
+  hash = mix(hash, state.nextRouteId);
   hash = mix(hash, state.planets.length);
   hash = mix(hash, state.fleets.length);
+  hash = mix(hash, state.routes.length);
   hash = mix(hash, state.players.length);
 
   for (const planet of state.planets) {
@@ -44,6 +46,15 @@ export function hashState(state: GameState): number {
     hash = mix(hash, fleet.troops);
     hash = mix(hash, fleet.departTick);
     hash = mix(hash, fleet.arriveTick);
+  }
+
+  for (const route of state.routes) {
+    hash = mix(hash, route.id);
+    hash = mix(hash, route.ownerId);
+    hash = mix(hash, route.fromPlanetId);
+    hash = mix(hash, route.toPlanetId);
+    hash = mix(hash, route.weightPermille);
+    hash = mix(hash, route.pending);
   }
 
   for (const player of state.players) {

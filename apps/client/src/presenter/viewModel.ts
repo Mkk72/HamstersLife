@@ -47,6 +47,18 @@ export interface ArrowView {
   readonly valid: boolean;
 }
 
+/** Постоянный маршрут: стрелка, по которой непрерывно течёт производство. */
+export interface RouteView {
+  readonly id: number;
+  readonly ownerId: PlayerId;
+  readonly fromX: number;
+  readonly fromY: number;
+  readonly toX: number;
+  readonly toY: number;
+  readonly weightPermille: number;
+  readonly pending: MilliUnits;
+}
+
 export interface BoostButtonView {
   readonly kind: BoostKind;
   readonly cost: MilliUnits;
@@ -79,6 +91,7 @@ export interface BoardView {
   readonly tick: number;
   readonly planets: readonly PlanetView[];
   readonly fleets: readonly FleetView[];
+  readonly routes: readonly RouteView[];
   readonly arrows: readonly ArrowView[];
   readonly hud: HudView;
 }
@@ -97,4 +110,6 @@ export interface GameView {
   playSelect(): void;
   /** Партия закончилась: короткая музыкальная фраза. */
   playOutcome(won: boolean): void;
+  /** Маршрут отрезан. */
+  playCut(): void;
 }

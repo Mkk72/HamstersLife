@@ -18,6 +18,9 @@ const MAP_OPTIONS: readonly { value: string; label: string }[] = [
   { value: 'three', label: '1×3' },
 ];
 
+/** Скорость игры: шаг 0.2 до 1, затем 1.5 и 2. */
+const SPEEDS: readonly number[] = [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2];
+
 const BOOST_LABEL: Readonly<Record<BoostKind, string>> = {
   production: 'Колесо',
   speed: 'Щёки',
@@ -31,10 +34,12 @@ export interface GameHudProps {
   readonly fps: () => number;
   readonly mapChoice: () => string;
   readonly audioEnabled: () => boolean;
+  readonly speed: () => number;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
+  readonly onSpeed: (speed: number) => void;
   readonly onAudio: (enabled: boolean) => void;
   readonly onRestart: () => void;
   readonly onDownloadReplay: () => void;
@@ -77,6 +82,16 @@ export function GameHud(props: GameHudProps) {
         </div>
 
         <div class="top-actions">
+          <select
+            class="select"
+            aria-label="Скорость игры"
+            value={String(props.speed())}
+            onChange={(event) => props.onSpeed(Number(event.currentTarget.value))}
+          >
+            <For each={SPEEDS}>
+              {(value) => <option value={String(value)}>{`×${value}`}</option>}
+            </For>
+          </select>
           <select
             class="select"
             aria-label="Карта"

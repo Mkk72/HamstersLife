@@ -78,8 +78,10 @@ export function createGameState(map: MapDefinition, balance: Balance, seed: numb
     rulesVersion: balance.rulesVersion,
     planets,
     fleets: [],
+    routes: [],
     players,
     nextFleetId: 1,
+    nextRouteId: 1,
   };
 }
 

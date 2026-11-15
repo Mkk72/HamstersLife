@@ -30,6 +30,12 @@ class TestSimSource implements SimSource {
     this.#listener = null;
   }
 
+  setSpeed(speed: number): void {
+    this.speed = speed;
+  }
+
+  speed = 1;
+
   advance(ticks: number): void {
     this.sim.advance(ticks);
     this.#listener?.(this.sim.state);
@@ -46,6 +52,7 @@ class TestView implements GameView {
   errors = 0;
   selects = 0;
   outcomes: boolean[] = [];
+  cuts = 0;
 
   render(view: BoardView): void {
     this.last = view;
@@ -77,6 +84,10 @@ class TestView implements GameView {
 
   playOutcome(won: boolean): void {
     this.outcomes.push(won);
+  }
+
+  playCut(): void {
+    this.cuts += 1;
   }
 }
 
@@ -157,13 +168,16 @@ describe('отправка флота', () => {
 
   it('использует выбранную долю и меняет её', () => {
     const { presenter, source } = setup();
+    const home = source.sim.state.planets[0];
+    if (!home) throw new Error('нет планеты');
+    const expected = Math.floor((home.garrison * 25) / 100);
+
     presenter.setRatio(25);
     expect(presenter.ratio).toBe(25);
     presenter.pointerDown(0);
     presenter.pointerHover(8);
     presenter.pointerUp();
-    // M: 12 000 mH, 25% = 3000
-    expect(source.sim.state.fleets[0]?.troops).toBe(3000);
+    expect(source.sim.state.fleets[0]?.troops).toBe(expected);
   });
 
   it('строит стрелку с временем полёта при наведении', () => {
@@ -175,6 +189,42 @@ describe('отправка флота', () => {
     expect(arrows).toHaveLength(1);
     expect(arrows[0]?.travelSeconds).toBeGreaterThan(0);
     expect(arrows[0]?.valid).toBe(true);
+  });
+});
+
+describe('маршруты и скорость', () => {
+  it('показывает постоянный маршрут в модели', () => {
+    const { presenter, view } = setup();
+    presenter.pointerDown(0);
+    presenter.pointerHover(8);
+    presenter.pointerUp();
+
+    const route = view.last?.routes[0];
+    expect(view.last?.routes).toHaveLength(1);
+    expect(route?.weightPermille).toBe(500);
+    expect(route?.toX).toBeGreaterThan(route?.fromX ?? 0);
+  });
+
+  it('отрезает маршрут по id', () => {
+    const { presenter, view, source } = setup();
+    presenter.pointerDown(0);
+    presenter.pointerHover(8);
+    presenter.pointerUp();
+    const routeId = view.last?.routes[0]?.id;
+    if (routeId === undefined) throw new Error('нет маршрута');
+
+    const result = presenter.cutRoute(routeId);
+
+    expect(result?.ok).toBe(true);
+    expect(source.sim.state.routes).toHaveLength(0);
+    expect(view.cuts).toBe(1);
+  });
+
+  it('передаёт скорость в источник состояния', () => {
+    const { presenter, source } = setup();
+    presenter.setSpeed(0.4);
+    expect(presenter.speed).toBe(0.4);
+    expect(source.speed).toBe(0.4);
   });
 });
 

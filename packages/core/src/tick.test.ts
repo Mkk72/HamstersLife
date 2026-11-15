@@ -46,8 +46,13 @@ describe('захват и оборона', () => {
     const target = getPlanet(state, 1);
     expect(target?.ownerId).toBe(0);
     expect(target?.garrison).toBe(5000);
-    // своя планета успела произвести 50 × 20
-    expect(getPlanet(state, 0)?.garrison).toBe(1000);
+    // вся продукция уходит в маршрут: гарнизон остаётся нулевым,
+    // к 20-му тику маршрут накопил 1000 mH и выпустил отряд;
+    // при захвате планеты маршрут на неё сгорает, а отряд остаётся в полёте
+    expect(getPlanet(state, 0)?.garrison).toBe(0);
+    expect(state.routes).toHaveLength(0);
+    expect(state.fleets).toHaveLength(1);
+    expect(state.fleets[0]?.troops).toBe(1000);
   });
 
   it('складывает гарнизон при подкреплении своей планеты', () => {

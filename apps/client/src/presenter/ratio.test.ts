@@ -23,6 +23,7 @@ class FakeSource implements SimSource {
   stop(): void {
     this.#listener = null;
   }
+  setSpeed(_speed: number): void {}
 }
 
 class SilentView implements GameView {
@@ -34,6 +35,7 @@ class SilentView implements GameView {
   playError(): void {}
   playSelect(): void {}
   playOutcome(_won: boolean): void {}
+  playCut(): void {}
 }
 
 describe('выбор доли', () => {

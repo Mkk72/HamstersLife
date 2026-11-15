@@ -4,6 +4,7 @@ export * from './rng';
 export * from './boosts';
 export * from './combat';
 export * from './flight';
+export * from './fleets';
 export * from './modifiers';
 export * from './state';
 export * from './commands';

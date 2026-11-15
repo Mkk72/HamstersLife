@@ -21,6 +21,8 @@ export interface SimSource {
   sendCommand(command: Command): CommandResult;
   start(onTick: (snapshot: GameState) => void): void;
   stop(): void;
+  /** Скорость игры: 0 — пауза, 1 — обычная, 2 — вдвое быстрее. */
+  setSpeed(speed: number): void;
 }
 
 /** Планировщик времени: браузерный rAF/интервал или ручной в тестах. */

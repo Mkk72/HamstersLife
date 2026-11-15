@@ -1,7 +1,7 @@
 /**
  * Локальная симуляция в браузере: тот же `Simulation`, что и в тестах, но
- * время двигает планировщик. Позже эту реализацию заменит Worker-источник —
- * презентер разницы не заметит, потому что работает через `SimSource`.
+ * время двигает планировщик. Скорость игры — множитель частоты тиков:
+ * 0 — пауза, 1 — обычная, 2 — вдвое быстрее.
  */
 import type { Command, CommandResult, GameState, SimSource, Scheduler } from '@hamsters/core';
 import { MS_PER_TICK } from '@hamsters/core';
@@ -12,6 +12,7 @@ export class LocalSimSource implements SimSource {
   readonly #scheduler: Scheduler;
   #listener: ((snapshot: GameState) => void) | null = null;
   #cancel: (() => void) | null = null;
+  #speed = 1;
 
   constructor(sim: Simulation, scheduler: Scheduler) {
     this.#sim = sim;
@@ -20,6 +21,10 @@ export class LocalSimSource implements SimSource {
 
   get simulation(): Simulation {
     return this.#sim;
+  }
+
+  get speed(): number {
+    return this.#speed;
   }
 
   getSnapshot(): GameState {
@@ -34,11 +39,7 @@ export class LocalSimSource implements SimSource {
 
   start(onTick: (snapshot: GameState) => void): void {
     this.#listener = onTick;
-    this.#cancel?.();
-    this.#cancel = this.#scheduler.every(MS_PER_TICK, () => {
-      this.#sim.step();
-      this.#emit();
-    });
+    this.#reschedule();
     this.#emit();
   }
 
@@ -46,6 +47,24 @@ export class LocalSimSource implements SimSource {
     this.#cancel?.();
     this.#cancel = null;
     this.#listener = null;
+  }
+
+  setSpeed(speed: number): void {
+    this.#speed = speed;
+    if (!this.#listener) return;
+    this.#reschedule();
+  }
+
+  #reschedule(): void {
+    this.#cancel?.();
+    this.#cancel = null;
+    if (!this.#listener) return;
+    const interval = MS_PER_TICK / this.#speed;
+    if (!Number.isFinite(interval) || interval <= 0) return; // пауза
+    this.#cancel = this.#scheduler.every(interval, () => {
+      this.#sim.step();
+      this.#emit();
+    });
   }
 
   #emit(): void {

@@ -24,6 +24,7 @@ export class WorkerSimSource implements SimSource {
   #snapshot: GameState;
   #listener: ((snapshot: GameState) => void) | null = null;
   #timer: number | null = null;
+  #speed = 1;
 
   constructor(
     map: MapDefinition,
@@ -52,7 +53,7 @@ export class WorkerSimSource implements SimSource {
   start(onTick: (snapshot: GameState) => void): void {
     this.#listener = onTick;
     this.#post({ type: 'start' });
-    this.#timer ??= window.setInterval(() => this.#post({ type: 'tick-request' }), MS_PER_TICK);
+    this.#schedule();
   }
 
   stop(): void {
@@ -63,6 +64,21 @@ export class WorkerSimSource implements SimSource {
     }
     this.#post({ type: 'stop' });
     this.#worker.terminate();
+  }
+
+  setSpeed(speed: number): void {
+    this.#speed = speed;
+    if (this.#listener) this.#schedule();
+  }
+
+  #schedule(): void {
+    if (this.#timer !== null) {
+      window.clearInterval(this.#timer);
+      this.#timer = null;
+    }
+    const interval = MS_PER_TICK / this.#speed;
+    if (!Number.isFinite(interval) || interval <= 0) return; // пауза
+    this.#timer = window.setInterval(() => this.#post({ type: 'tick-request' }), interval);
   }
 
   #post(message: ToWorker): void {

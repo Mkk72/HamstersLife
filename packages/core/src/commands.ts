@@ -2,13 +2,16 @@
  * Команды игрока. Все проверки — здесь, потому что та же функция вызывается
  * сервером: клиент присылает намерение, сервер применяет или отказывает.
  * Исход зависит только от состояния и контента — никаких Date, Math.random.
+ *
+ * `SendFleet` теперь создаёт постоянный маршрут: сразу уходит выбранная доля
+ * гарнизона, а дальше по стрелке течёт производство (см. systems.ts).
+ * Повторная стрелка на ту же цель меняет вес, не списывая войска заново.
  */
 import { MIN_FLEET_SIZE } from './combat';
 import { setBoost } from './boosts';
-import { distance, flightTicks } from './flight';
-import { speedUnitsPerSecond } from './modifiers';
+import { launchFleet } from './fleets';
 import { getPlanet, getPlayer } from './state';
-import type { Balance, Command, CommandResult, GameState, Planet } from './types';
+import type { Balance, Command, CommandResult, GameState, Planet, Route } from './types';
 import { BOOST_KINDS } from './types';
 
 const ALLOWED_RATIOS: readonly number[] = [25, 50, 75, 100];
@@ -19,6 +22,8 @@ export function applyCommand(state: GameState, command: Command, balance: Balanc
       return sendFleet(state, command, balance);
     case 'ApplyBoost':
       return applyBoost(state, command, balance);
+    case 'RemoveRoute':
+      return removeRoute(state, command);
   }
 }
 
@@ -48,38 +53,65 @@ function sendFleet(
   if (seen.has(command.toPlanetId)) return { ok: false, error: 'same-planet' };
   if (sources.length === 0) return { ok: false, error: 'no-troops' };
 
-  const now = state.tick;
-  const parts: { planet: Planet; troops: number }[] = [];
+  // Лимит маршрутов проверяем до изменений, чтобы команда была атомарной.
   for (const planet of sources) {
-    const troops = Math.floor((planet.garrison * command.ratio) / 100);
-    if (troops < MIN_FLEET_SIZE) continue;
-    parts.push({ planet, troops });
+    if (findRoute(state, planet.id, target.id)) continue;
+    const used = state.routes.filter((route) => route.fromPlanetId === planet.id).length;
+    if (used >= balance.maxRoutesPerPlanet) return { ok: false, error: 'too-many-routes' };
   }
-  if (parts.length === 0) return { ok: false, error: 'no-troops' };
 
   const fleetIds: number[] = [];
-  for (const part of parts) {
-    const speed = speedUnitsPerSecond(part.planet, now, balance);
-    const ticks = flightTicks(
-      distance(part.planet.x, part.planet.y, target.x, target.y),
-      speed,
-    );
-    part.planet.garrison -= part.troops;
-    const fleetId = state.nextFleetId;
-    state.nextFleetId += 1;
-    state.fleets.push({
-      id: fleetId,
+
+  for (const planet of sources) {
+    const existing = findRoute(state, planet.id, target.id);
+    if (existing) {
+      // Повторная стрелка меняет вес, войска заново не списываются.
+      existing.weightPermille = command.ratio * 10;
+      continue;
+    }
+
+    const route: Route = {
+      id: state.nextRouteId,
       ownerId: command.playerId,
-      fromPlanetId: part.planet.id,
+      fromPlanetId: planet.id,
       toPlanetId: target.id,
-      troops: part.troops,
-      departTick: now,
-      arriveTick: now + ticks,
-    });
-    fleetIds.push(fleetId);
+      weightPermille: command.ratio * 10,
+      pending: 0,
+    };
+    state.nextRouteId += 1;
+    state.routes.push(route);
+
+    const troops = Math.floor((planet.garrison * command.ratio) / 100);
+    if (troops < MIN_FLEET_SIZE) continue;
+    planet.garrison -= troops;
+    const fleet = launchFleet(state, balance, command.playerId, planet, target.id, troops);
+    if (fleet) fleetIds.push(fleet.id);
   }
 
   return { ok: true, fleetIds };
+}
+
+function findRoute(state: GameState, fromPlanetId: number, toPlanetId: number): Route | undefined {
+  return state.routes.find(
+    (route) => route.fromPlanetId === fromPlanetId && route.toPlanetId === toPlanetId,
+  );
+}
+
+function removeRoute(
+  state: GameState,
+  command: Extract<Command, { type: 'RemoveRoute' }>,
+): CommandResult {
+  const player = getPlayer(state, command.playerId);
+  if (!player || !player.alive) return { ok: false, error: 'player-dead' };
+
+  const index = state.routes.findIndex((route) => route.id === command.routeId);
+  if (index < 0) return { ok: false, error: 'unknown-route' };
+  const route = state.routes[index];
+  if (!route || route.ownerId !== command.playerId) {
+    return { ok: false, error: 'not-your-route' };
+  }
+  state.routes.splice(index, 1);
+  return { ok: true };
 }
 
 function applyBoost(
