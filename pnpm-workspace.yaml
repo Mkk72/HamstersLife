@@ -1,0 +1,9 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Node на машинах разработки под Windows не разворачивает junction-ссылки pnpm:
+# lstat не видит symlink, и изолированная раскладка ломает разрешение зависимостей
+# (tsc не находит платформенный пакет, vitest — std-env). Плоский node_modules
+# решает это и не ослабляет границы пакетов: они держатся на tsconfig и ESLint.
+nodeLinker: hoisted
