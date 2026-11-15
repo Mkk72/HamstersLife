@@ -6,6 +6,7 @@
  * массивов состояния, а он задаётся только правилами, не машиной.
  */
 import type { GameState } from './types';
+import { BOOST_KINDS } from './types';
 
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
@@ -32,9 +33,7 @@ export function hashState(state: GameState): number {
     hash = mix(hash, planet.ownerId);
     hash = mix(hash, planet.garrison);
     hash = mix(hash, planet.defensePermille);
-    hash = mix(hash, planet.productionBoostUntilTick);
-    hash = mix(hash, planet.speedBoostUntilTick);
-    hash = mix(hash, planet.defenseBoostUntilTick);
+    for (const kind of BOOST_KINDS) hash = mix(hash, planet.boosts[kind] ?? 0);
   }
 
   for (const fleet of state.fleets) {

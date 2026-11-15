@@ -19,9 +19,10 @@
 - [x] Границы пакетов: `lib: ["ES2022"]` без DOM у `core` + ESLint `no-restricted-imports` + `pnpm boundaries`
 - [x] Vitest (пул потоков), первый набор тестов
 - [x] CI: типы, границы, тесты, сборка
-- [ ] `apps/client`: Vite + PixiJS + Solid, звёздный фон, счётчик FPS, переключатель качества
-- [ ] Каркас MVP: `IGameView`, `GamePresenter`, `ISimSource` + заглушка
-- [x] Документы: `DEVELOPMENT.md`, `PROGRESS.md`, `REFERENCES.md`, раздел «Решения» в `ARCHITECTURE.md`
+- [x] `apps/client`: Vite + PixiJS + Solid, звёздный фон, счётчик FPS, каркас сцены
+- [ ] Переключатель качества в интерфейсе
+- [ ] Каркас MVP: `IGameView`, `GamePresenter`, `ISimSource` + заглушка — **презентер и `SimSource` готовы, вид рисует только фон**
+- [x] Документы: `DEVELOPMENT.md`, `PROGRESS.md`, `REFERENCES.md`, раздел «Решения» в `ARCHITECTURE.md`, рецепты расширения (§12)
 
 **Критерий этапа:** `pnpm verify` зелёный; сцена открывается в Chrome; `core` собирается без `dom`. Первые два пункта выполнены без клиента только наполовину — ждём `apps/client`.
 
@@ -40,6 +41,8 @@
 - [x] 65 тестов ядра.
 - [x] `packages/content`: баланс и карта `arena-duel` в JSON + строгие zod-схемы, 9 тестов (включая симметрию карты и кратность 20).
 - [x] Порты ядра `ContentProvider`, `SimSource`, `Scheduler`, `Bot`; класс `Simulation` вместо россыпи функций.
+- [x] Бусты хранятся записью по видам, тик собран из `TICK_SYSTEMS` — новые правила добавляются списком.
+- [x] Клиент: каркас Vite + Pixi + Solid, звёздный фон, презентер с тестами (14 тестов), локальный `SimSource` с планировщиком.
 
 ### Осталось
 

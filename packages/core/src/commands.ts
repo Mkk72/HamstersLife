@@ -4,14 +4,14 @@
  * Исход зависит только от состояния и контента — никаких Date, Math.random.
  */
 import { MIN_FLEET_SIZE } from './combat';
+import { setBoost } from './boosts';
 import { distance, flightTicks } from './flight';
 import { speedUnitsPerSecond } from './modifiers';
 import { getPlanet, getPlayer } from './state';
-import type { Balance, BoostKind, Command, CommandResult, GameState, Planet } from './types';
+import type { Balance, Command, CommandResult, GameState, Planet } from './types';
+import { BOOST_KINDS } from './types';
 
 const ALLOWED_RATIOS: readonly number[] = [25, 50, 75, 100];
-
-const BOOST_KINDS: readonly BoostKind[] = ['production', 'speed', 'defense'];
 
 export function applyCommand(state: GameState, command: Command, balance: Balance): CommandResult {
   switch (command.type) {
@@ -104,17 +104,7 @@ function applyBoost(
   player.boostCooldownUntilTick[command.boost] = now + stats.cooldownTicks;
 
   const untilTick = now + stats.durationTicks;
-  switch (command.boost) {
-    case 'production':
-      planet.productionBoostUntilTick = untilTick;
-      break;
-    case 'speed':
-      planet.speedBoostUntilTick = untilTick;
-      break;
-    case 'defense':
-      planet.defenseBoostUntilTick = untilTick;
-      break;
-  }
+  setBoost(planet, command.boost, untilTick);
 
   return { ok: true };
 }

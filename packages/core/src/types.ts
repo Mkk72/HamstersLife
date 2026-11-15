@@ -8,7 +8,14 @@ export type PlanetId = number;
 export type FleetId = number;
 
 export type PlanetSize = 'S' | 'M' | 'L' | 'XL';
-export type BoostKind = 'production' | 'speed' | 'defense';
+
+/**
+ * Виды бустов. Порядок массива — канонический: по нему строится хэш и сброс
+ * таймеров, поэтому новые виды добавляются только в конец.
+ */
+export const BOOST_KINDS = ['production', 'speed', 'defense'] as const;
+
+export type BoostKind = (typeof BOOST_KINDS)[number];
 
 /** Тик, начиная с которого буст больше не действует (0 — не действовал). */
 export type Tick = number;
@@ -22,9 +29,8 @@ export interface Planet {
   readonly defensePermille: number;
   ownerId: PlayerId;
   garrison: MilliUnits;
-  productionBoostUntilTick: Tick;
-  speedBoostUntilTick: Tick;
-  defenseBoostUntilTick: Tick;
+  /** До какого тика действует каждый буст. Новый вид — новая запись. */
+  boosts: Record<BoostKind, Tick>;
 }
 
 export interface Fleet {

@@ -8,7 +8,7 @@
   },
   "flightSpeedUnitsPerSecond": 100,
   "seedsPerPlanetPerSecond": 4000,
-  "startingSeeds": 120000,
+  "startingSeeds": 200000,
   "boosts": {
     "production": { "cost": 150000, "durationTicks": 300, "cooldownTicks": 600, "factorPermille": 2000 },
     "speed": { "cost": 120000, "durationTicks": 200, "cooldownTicks": 500, "factorPermille": 1600 },

@@ -188,7 +188,7 @@ describe('ApplyBoost', () => {
 
     expect(result.ok).toBe(true);
     expect(state.players[0]?.seeds).toBe(testBalance.startingSeeds - testBalance.boosts.production.cost);
-    expect(getPlanet(state, 0)?.productionBoostUntilTick).toBe(testBalance.boosts.production.durationTicks);
+    expect(getPlanet(state, 0)?.boosts.production).toBe(testBalance.boosts.production.durationTicks);
     expect(state.players[0]?.boostCooldownUntilTick.production).toBe(
       testBalance.boosts.production.cooldownTicks,
     );
@@ -213,7 +213,7 @@ describe('ApplyBoost', () => {
         testBalance,
       ),
     ).toEqual({ ok: false, error: 'not-enough-seeds' });
-    expect(getPlanet(state, 0)?.defenseBoostUntilTick).toBe(0);
+    expect(getPlanet(state, 0)?.boosts.defense).toBe(0);
   });
 
   it('отказывает на чужой планете', () => {

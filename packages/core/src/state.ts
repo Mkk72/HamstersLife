@@ -5,6 +5,7 @@
  * Это даёт прямой доступ без Map и одинаковый порядок обхода (важно для хэша).
  */
 import type { Balance, GameState, MapDefinition, Planet, PlayerState } from './types';
+import { createBoosts } from './boosts';
 import { NEUTRAL_OWNER } from './types';
 import { HAMSTER, PERMILLE } from './units';
 
@@ -61,9 +62,7 @@ export function createGameState(map: MapDefinition, balance: Balance, seed: numb
       defensePermille: planet.defensePermille ?? PERMILLE,
       ownerId: planet.ownerId,
       garrison: planet.garrisonHamsters * HAMSTER,
-      productionBoostUntilTick: 0,
-      speedBoostUntilTick: 0,
-      defenseBoostUntilTick: 0,
+      boosts: createBoosts(),
     }));
 
   const players: PlayerState[] = Array.from({ length: map.playerCount }, (_, id) => ({

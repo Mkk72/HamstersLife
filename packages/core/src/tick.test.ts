@@ -161,7 +161,7 @@ describe('захват и оборона', () => {
 
     const planet = getPlanet(state, 2);
     expect(planet?.ownerId).toBe(0);
-    expect(planet?.productionBoostUntilTick).toBe(0);
+    expect(planet?.boosts.production).toBe(0);
   });
 });
 
