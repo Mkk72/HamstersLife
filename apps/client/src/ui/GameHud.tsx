@@ -3,6 +3,7 @@ import type { BoostKind, Ratio } from '@hamsters/core';
 import { For, Show } from 'solid-js';
 import type { BoardView, HudView, QualityLevel } from '../presenter/viewModel';
 import { BoostIcon } from './BoostIcon';
+import { SPEEDS } from './speeds';
 
 const RATIOS: readonly Ratio[] = [25, 50, 75, 100];
 
@@ -19,7 +20,7 @@ const MAP_OPTIONS: readonly { value: string; label: string }[] = [
 ];
 
 /** Скорость игры: шаг 0.2 до 1, затем 1.5 и 2. */
-const SPEEDS: readonly number[] = [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2];
+const SPEED_LABEL = (value: number): string => (value === 0 ? 'Пауза' : `×${value}`);
 
 const BOOST_LABEL: Readonly<Record<BoostKind, string>> = {
   production: 'Колесо',
@@ -40,6 +41,7 @@ export interface GameHudProps {
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
   readonly onSpeed: (speed: number) => void;
+  readonly onTogglePause: () => void;
   readonly onAudio: (enabled: boolean) => void;
   readonly onRestart: () => void;
   readonly onDownloadReplay: () => void;
@@ -82,14 +84,22 @@ export function GameHud(props: GameHudProps) {
         </div>
 
         <div class="top-actions">
+          <button
+            class="button"
+            type="button"
+            title="Пауза (пробел)"
+            onClick={props.onTogglePause}
+          >
+            {props.speed() === 0 ? '▶' : '⏸'}
+          </button>
           <select
             class="select"
             aria-label="Скорость игры"
-            value={String(props.speed())}
+            value={String(props.speed() === 0 ? 1 : props.speed())}
             onChange={(event) => props.onSpeed(Number(event.currentTarget.value))}
           >
             <For each={SPEEDS}>
-              {(value) => <option value={String(value)}>{`×${value}`}</option>}
+              {(value) => <option value={String(value)}>{SPEED_LABEL(value)}</option>}
             </For>
           </select>
           <select

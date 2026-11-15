@@ -215,6 +215,8 @@ export class GamePresenter {
     if (!outcome) return;
     this.#outcomePlayed = true;
     this.#view.playOutcome(outcome.youWon);
+    // Мир замирает на экране итогов: дальше считать нечего.
+    this.#sim.stop();
   }
 
   /** Смена владельца между отрисовками — повод для эффекта захвата. */

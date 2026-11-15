@@ -45,7 +45,7 @@ export function MainMenu(props: MainMenuProps) {
         </button>
 
         <ul class="menu__controls">
-          <li>Перетащи стрелку от своей планеты к цели</li>
+          <li>Перетащи стрелку от своей планеты к цели — маршрут останется и будет течь</li>
           <li>
             Доля отправки — <kbd>1</kbd>–<kbd>4</kbd> или колесо
           </li>
@@ -55,6 +55,10 @@ export function MainMenu(props: MainMenuProps) {
           <li>
             <kbd>Shift</kbd> — добавить планету к выбору
           </li>
+          <li>
+            Пауза — <kbd>Space</kbd>, скорость — <kbd>[</kbd> и <kbd>]</kbd>
+          </li>
+          <li>Правая кнопка по стрелке — отрезать маршрут</li>
         </ul>
       </div>
     </div>

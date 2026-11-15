@@ -20,6 +20,7 @@ export interface AppProps {
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
   readonly onSpeed: (speed: number) => void;
+  readonly onTogglePause: () => void;
   readonly onStart: () => void;
   readonly onAudio: (enabled: boolean) => void;
   readonly onRestart: () => void;
@@ -58,6 +59,7 @@ export function App(props: AppProps) {
           onQuality={props.onQuality}
           onMap={props.onMap}
           onSpeed={props.onSpeed}
+          onTogglePause={props.onTogglePause}
           onAudio={props.onAudio}
           onRestart={props.onRestart}
           onDownloadReplay={props.onDownloadReplay}

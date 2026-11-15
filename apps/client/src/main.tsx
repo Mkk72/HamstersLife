@@ -61,8 +61,7 @@ let bots: BotRunner[] = [];
 let recorder: MatchRecorder | null = null;
 let matchCounter = 0;
 
-function mapFor(choice: string, seed: number): MapDefinition {
-  if (choice === 'three') return generateDuelMap(seed, { playerCount: 4 });
+function mapFor(choice: string, seed: number): MapDefinition {  if (choice === 'three') return generateDuelMap(seed, { playerCount: 4 });
   if (stressMode) return generateDuelMap(seed, { neutralPairs: 18 });
   return choice === 'random' ? generateDuelMap(seed) : getMap(CONTENT.defaultMapName);
 }
@@ -147,16 +146,32 @@ function downloadReplay(): void {
   URL.revokeObjectURL(url);
 }
 
+let lastSpeed = 1;
+
+/** Скорость применяется ко всем участникам: мир, игрок и боты. */
+function applySpeed(value: number): void {
+  if (value > 0) lastSpeed = value;
+  setSpeed(value);
+  presenter?.setSpeed(value);
+  for (const bot of bots) bot.setSpeed(value);
+}
+
+function togglePause(): void {
+  applySpeed(speed() > 0 ? 0 : lastSpeed);
+}
+
 const pointer = new PointerInput(app.canvas, scene, () => presenter);
 pointer.attach();
 
 // Браузер разрешает звук только после действия пользователя.
 window.addEventListener('pointerdown', () => scene.unlockAudio(), { once: true });
 
-const keyboard = new KeyboardInput(
-  () => presenter,
-  (value) => setRatio(value),
-);
+const keyboard = new KeyboardInput({
+  presenter: () => presenter,
+  onRatio: (value) => setRatio(value),
+  onSpeed: applySpeed,
+  onTogglePause: togglePause,
+});
 keyboard.attach();
 
 const wheel = new WheelInput(app.canvas, () => presenter, (value) => setRatio(value));
@@ -187,11 +202,8 @@ render(
         // В меню выбор только запоминается; в игре — начинается новый матч.
         if (started()) startMatch(choice);
       }}
-      onSpeed={(value) => {
-        setSpeed(value);
-        presenter?.setSpeed(value);
-        for (const bot of bots) bot.setSpeed(value);
-      }}
+      onSpeed={applySpeed}
+      onTogglePause={togglePause}
       onStart={() => {
         scene.unlockAudio();
         startMatch();
