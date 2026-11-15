@@ -169,7 +169,7 @@ export function GameHud(props: GameHudProps) {
             )}
           </Show>
 
-          <div class="panel">
+          <div class="panel panel--garrison" title="Состав выбранной планеты и её предел">
             <div class="panel__title">
               <span>Гарнизон</span>
               <span class="panel__meta">
@@ -199,7 +199,7 @@ export function GameHud(props: GameHudProps) {
             </div>
           </div>
 
-          <div class="panel">
+          <div class="panel panel--send" title="Каким составом пойдёт следующий отряд">
             <div class="panel__title">
               <span>Отправка</span>
               <span class="panel__meta">{compositionHint()}</span>
@@ -224,7 +224,10 @@ export function GameHud(props: GameHudProps) {
             </div>
           </div>
 
-          <div class="panel">
+          <div
+            class="panel panel--barracks"
+            title="Клик — один хомяк в очередь. Если гарнизон полон, обучение ждёт места."
+          >
             <div class="panel__title">
               <span>Казарма</span>
               <span class="panel__meta">
@@ -265,7 +268,7 @@ export function GameHud(props: GameHudProps) {
             </div>
           </div>
 
-          <div class="panel">
+          <div class="panel panel--boosts" title="Стоимость бустов в семечках">
             <div class="panel__title">
               <span>Бусты</span>
               <span class="panel__meta">семечки</span>
@@ -300,21 +303,20 @@ export function GameHud(props: GameHudProps) {
               </Index>
             </div>
           </div>
-        </div>
-
-        <div class="ratios" role="group" aria-label="Доля отправки">
-          <For each={RATIOS}>
-            {(value) => (
-              <button
-                class="ratio"
-                classList={{ 'ratio--active': props.ratio() === value }}
-                type="button"
-                onClick={() => props.onRatio(value)}
-              >
-                {value}%
-              </button>
-            )}
-          </For>
+          <div class="ratios" role="group" aria-label="Доля отправки">
+            <For each={RATIOS}>
+              {(value) => (
+                <button
+                  class="ratio"
+                  classList={{ 'ratio--active': props.ratio() === value }}
+                  type="button"
+                  onClick={() => props.onRatio(value)}
+                >
+                  {value}%
+                </button>
+              )}
+            </For>
+          </div>
         </div>
       </div>
 
