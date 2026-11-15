@@ -67,6 +67,7 @@ export class GamePresenter {
   };
   #tampered = false;
   #lastMaskTick = -1000;
+  #outcomePlayed = false;
 
   constructor(deps: PresenterDeps) {
     this.#sim = deps.sim;
@@ -128,6 +129,7 @@ export class GamePresenter {
     } else {
       this.#selected = new Set([planetId]);
     }
+    this.#view.playSelect();
     this.render();
   }
 
@@ -154,6 +156,7 @@ export class GamePresenter {
     }
     const result = this.#sendFleet(target);
     if (result?.ok) this.#view.playSend();
+    else if (result) this.#view.playError();
     this.render();
     return result;
   }
@@ -169,6 +172,7 @@ export class GamePresenter {
       boost: kind,
     });
     if (result.ok) this.#view.playBoost(planetId, kind);
+    else this.#view.playError();
     this.render();
     return result;
   }
@@ -177,6 +181,16 @@ export class GamePresenter {
     const view = this.buildView();
     this.#view.render(view);
     this.#detectCaptures(view);
+    this.#detectOutcome(view);
+  }
+
+  /** Один раз сообщаем виду, что партия кончилась — для финальной фразы. */
+  #detectOutcome(view: BoardView): void {
+    if (this.#outcomePlayed) return;
+    const outcome = view.hud.outcome;
+    if (!outcome) return;
+    this.#outcomePlayed = true;
+    this.#view.playOutcome(outcome.youWon);
   }
 
   /** Смена владельца между отрисовками — повод для эффекта захвата. */

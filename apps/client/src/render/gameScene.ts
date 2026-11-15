@@ -40,6 +40,7 @@ export class GameScene implements GameView {
   #mapHeight: number;
   readonly #onBoard: ((view: BoardView) => void) | undefined;
   #quality: QualityLevel = 'high';
+  #audioEnabled = true;
   #pulses: Pulse[] = [];
   #board: BoardView | null = null;
   #baseX = 0;
@@ -85,9 +86,20 @@ export class GameScene implements GameView {
     this.fit();
   }
 
-  /** Разбудить звук — вызывать на первом действии пользователя. */
+  /** Разбудить звук и включить музыку — вызывать на первом действии пользователя. */
   unlockAudio(): void {
     this.#sfx.ensure();
+    if (this.#audioEnabled) this.#sfx.startMusic();
+  }
+
+  setAudioEnabled(enabled: boolean): void {
+    this.#audioEnabled = enabled;
+    this.#sfx.setEnabled(enabled);
+    if (enabled) this.#sfx.startMusic();
+  }
+
+  get audioEnabled(): boolean {
+    return this.#audioEnabled;
   }
 
   render(view: BoardView): void {
@@ -126,6 +138,19 @@ export class GameScene implements GameView {
 
   playSend(): void {
     this.#sfx.send();
+  }
+
+  playError(): void {
+    this.#sfx.error();
+  }
+
+  playSelect(): void {
+    this.#sfx.select();
+  }
+
+  playOutcome(won: boolean): void {
+    if (won) this.#sfx.victory();
+    else this.#sfx.defeat();
   }
 
   /** Планета под экранной точкой — для ввода. */

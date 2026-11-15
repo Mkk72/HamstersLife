@@ -42,6 +42,7 @@ const [ratio, setRatio] = createSignal<Ratio>(50);
 const [quality, setQuality] = createSignal<QualityLevel>('high');
 const [mapChoice, setMapChoice] = createSignal('arena-duel');
 const [started, setStarted] = createSignal(false);
+const [audioEnabled, setAudioEnabled] = createSignal(true);
 
 const scene = new GameScene(app, getMap(CONTENT.defaultMapName), {
   onBoard: (view) => setBoard(view),
@@ -132,6 +133,7 @@ render(
       quality={quality}
       mapChoice={mapChoice}
       started={started}
+      audioEnabled={audioEnabled}
       onRatio={(value) => {
         setRatio(value);
         presenter?.setRatio(value);
@@ -149,6 +151,10 @@ render(
       onStart={() => {
         scene.unlockAudio();
         startMatch();
+      }}
+      onAudio={(value) => {
+        setAudioEnabled(value);
+        scene.setAudioEnabled(value);
       }}
       onRestart={() => startMatch()}
       onDownloadReplay={downloadReplay}

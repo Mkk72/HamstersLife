@@ -29,10 +29,12 @@ export interface GameHudProps {
   readonly quality: () => QualityLevel;
   readonly fps: () => number;
   readonly mapChoice: () => string;
+  readonly audioEnabled: () => boolean;
   readonly onRatio: (ratio: Ratio) => void;
   readonly onBoost: (kind: BoostKind) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
+  readonly onAudio: (enabled: boolean) => void;
   readonly onRestart: () => void;
   readonly onDownloadReplay: () => void;
 }
@@ -94,6 +96,14 @@ export function GameHud(props: GameHudProps) {
               {(item) => <option value={item.value}>{item.label}</option>}
             </For>
           </select>
+          <button
+            class="button"
+            type="button"
+            title="Звук и музыка"
+            onClick={() => props.onAudio(!props.audioEnabled())}
+          >
+            {props.audioEnabled() ? 'Звук' : 'Тихо'}
+          </button>
           <button class="button" type="button" title="Скачать повтор матча" onClick={props.onDownloadReplay}>
             Повтор
           </button>

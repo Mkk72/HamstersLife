@@ -5,9 +5,12 @@
 export class Sfx {
   #ctx: AudioContext | null = null;
   #enabled = true;
+  #music: OscillatorNode[] = [];
+  #master: GainNode | null = null;
 
   setEnabled(enabled: boolean): void {
     this.#enabled = enabled;
+    if (!enabled) this.stopMusic();
   }
 
   /** Вызвать из обработчика ввода: разблокирует звук. */
@@ -23,6 +26,22 @@ export class Sfx {
 
   click(): void {
     this.#tone(520, 0.045, 'triangle', 0.035);
+  }
+
+  select(): void {
+    this.#tone(740, 0.04, 'sine', 0.028);
+  }
+
+  victory(): void {
+    [523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
+      this.#tone(frequency, 0.2, 'triangle', 0.05, index * 0.12);
+    });
+  }
+
+  defeat(): void {
+    [392, 329.63, 261.63].forEach((frequency, index) => {
+      this.#tone(frequency, 0.26, 'sine', 0.05, index * 0.16);
+    });
   }
 
   send(): void {
@@ -41,6 +60,57 @@ export class Sfx {
 
   error(): void {
     this.#tone(170, 0.14, 'sawtooth', 0.03);
+  }
+
+  /**
+   * Тихая «космическая» подложка: четыре ноты с расстройкой и медленным
+   * дыханием громкости. Процедурно, как и остальной звук.
+   */
+  startMusic(): void {
+    const ctx = this.#ctx;
+    if (!ctx || !this.#enabled || this.#music.length > 0) return;
+
+    const master = ctx.createGain();
+    master.gain.value = 0.045;
+    master.connect(ctx.destination);
+    this.#master = master;
+
+    const notes = [110, 164.81, 220, 277.18];
+    notes.forEach((frequency, index) => {
+      const oscillator = ctx.createOscillator();
+      oscillator.type = index === 0 ? 'sine' : 'triangle';
+      oscillator.frequency.value = frequency;
+      oscillator.detune.value = index * 4 - 6;
+
+      const voice = ctx.createGain();
+      voice.gain.value = index === 0 ? 0.55 : 0.22;
+      oscillator.connect(voice).connect(master);
+      oscillator.start();
+      this.#music.push(oscillator);
+    });
+
+    // Медленное «дыхание» — LFO на общую громкость.
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.055;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.02;
+    lfo.connect(lfoGain).connect(master.gain);
+    lfo.start();
+    this.#music.push(lfo);
+  }
+
+  stopMusic(): void {
+    for (const oscillator of this.#music) {
+      try {
+        oscillator.stop();
+      } catch {
+        // уже остановлен — не ошибка
+      }
+      oscillator.disconnect();
+    }
+    this.#music = [];
+    this.#master?.disconnect();
+    this.#master = null;
   }
 
   #tone(

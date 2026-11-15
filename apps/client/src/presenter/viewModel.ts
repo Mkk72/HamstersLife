@@ -91,4 +91,10 @@ export interface GameView {
   playBoost(planetId: PlanetId, kind: BoostKind): void;
   /** Отряд ушёл с планеты — короткий звук и вспышка, без знания правил. */
   playSend(): void;
+  /** Команда отклонена: короткий сигнал, чтобы игрок понял причину. */
+  playError(): void;
+  /** Выбрана планета. */
+  playSelect(): void;
+  /** Партия закончилась: короткая музыкальная фраза. */
+  playOutcome(won: boolean): void;
 }

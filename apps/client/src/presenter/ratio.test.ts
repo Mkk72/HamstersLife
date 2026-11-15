@@ -31,6 +31,9 @@ class SilentView implements GameView {
   playCapture(_id: number): void {}
   playBoost(_id: number, _kind: BoostKind): void {}
   playSend(): void {}
+  playError(): void {}
+  playSelect(): void {}
+  playOutcome(_won: boolean): void {}
 }
 
 describe('выбор доли', () => {

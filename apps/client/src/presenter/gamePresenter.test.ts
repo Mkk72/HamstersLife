@@ -43,6 +43,9 @@ class TestView implements GameView {
   captures: PlanetId[] = [];
   boosts: BoostKind[] = [];
   sends = 0;
+  errors = 0;
+  selects = 0;
+  outcomes: boolean[] = [];
 
   render(view: BoardView): void {
     this.last = view;
@@ -62,6 +65,18 @@ class TestView implements GameView {
 
   playSend(): void {
     this.sends += 1;
+  }
+
+  playError(): void {
+    this.errors += 1;
+  }
+
+  playSelect(): void {
+    this.selects += 1;
+  }
+
+  playOutcome(won: boolean): void {
+    this.outcomes.push(won);
   }
 }
 
@@ -87,6 +102,7 @@ describe('выбор планет', () => {
 
     expect(presenter.selectedIds).toEqual([0]);
     expect(view.last?.planets.find((planet) => planet.id === 0)?.selected).toBe(true);
+    expect(view.selects).toBe(1);
   });
 
   it('не выбирает чужую и нейтральную', () => {
@@ -178,6 +194,18 @@ describe('бусты', () => {
     expect(presenter.applyBoost('production')).toBeNull();
   });
 
+  it('сообщает об отказе звуком', () => {
+    const { presenter, view, source } = setup();
+    const player = source.sim.state.players[0];
+    if (!player) throw new Error('нет игрока');
+    player.seeds = 0;
+    presenter.pointerDown(0);
+
+    const result = presenter.applyBoost('production');
+    expect(result?.ok).toBe(false);
+    expect(view.errors).toBe(1);
+  });
+
   it('показывает доступность в HUD', () => {
     const { view } = setup();
     const buttons = view.last?.hud.boosts ?? [];
@@ -209,6 +237,7 @@ describe('HUD', () => {
     source.advance(1);
 
     expect(view.last?.hud.outcome).toMatchObject({ finished: true, youWon: true });
+    expect(view.outcomes).toEqual([true]);
   });
 
   it('просит эффект захвата при смене владельца', () => {
