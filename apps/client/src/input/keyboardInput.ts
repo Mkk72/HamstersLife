@@ -1,10 +1,7 @@
 /**
- * Клавиатура: доли 1–4, бусты Q/W/E, пауза — пробел, скорость — [ и ].
- * Раскладка собрана таблицами, поэтому новая горячая клавиша — одна строка,
- * а не ветка в обработчике. Клавиши скорости читаются по `code`, чтобы
- * работать в русской раскладке.
+ * Клавиатура: доли 1–4, пауза — пробел, скорость — [ и ].
  */
-import type { BoostKind, Ratio } from '@hamsters/core';
+import type { Ratio } from '@hamsters/core';
 import type { GamePresenter } from '../presenter/gamePresenter';
 import { stepSpeed } from '../ui/speeds';
 
@@ -13,15 +10,6 @@ const RATIO_KEYS: Readonly<Record<string, Ratio>> = {
   '2': 50,
   '3': 75,
   '4': 100,
-};
-
-const BOOST_KEYS: Readonly<Record<string, BoostKind>> = {
-  q: 'production',
-  w: 'speed',
-  e: 'defense',
-  й: 'production',
-  ц: 'speed',
-  у: 'defense',
 };
 
 export interface KeyboardInputOptions {
@@ -67,10 +55,6 @@ export class KeyboardInput {
     if (ratio !== undefined) {
       presenter.setRatio(ratio);
       this.#options.onRatio(ratio);
-      return;
     }
-
-    const boost = BOOST_KEYS[key];
-    if (boost !== undefined) presenter.applyBoost(boost);
   };
 }

@@ -1,172 +1,81 @@
-import { BALANCE, getMap } from '@hamsters/content';
-import { Simulation, setGarrison } from '@hamsters/core';
 import { describe, expect, it } from 'vitest';
+import { BALANCE, getMap } from '@hamsters/content';
+import { Simulation, addUnits, planFrom } from '@hamsters/core';
 import { BOT_PRESETS } from './presets';
 import { SimpleBot } from './simpleBot';
 
 function arena() {
-  return new Simulation(getMap('arena-duel'), BALANCE, 7);
+  return new Simulation(getMap('arena-duel'), BALANCE, 1);
 }
 
-describe('SimpleBot («Боец»)', () => {
-  it('бьёт слабого нейтрала при перевесе', () => {
+describe('бот первого этапа', () => {
+  it('ставит шаблон плана, если план пуст', () => {
     const sim = arena();
-    const bot = new SimpleBot(BALANCE);
+    const planet = sim.state.planets[0];
+    if (!planet) throw new Error('нет планеты');
+    planet.plan = { swordsman: 0, archer: 0, cavalry: 0, cannon: 0 };
+    const bot = new SimpleBot(BALANCE, BOT_PRESETS.normal.options);
     const commands = bot.decide(sim.state, 0);
+    expect(commands.some((command) => command.type === 'ApplyTemplate')).toBe(true);
+  });
 
+  it('нападает на слабого нейтрала', () => {
+    const sim = arena();
+    const neutral = sim.state.planets.find((planet) => planet.ownerId === -1);
+    if (!neutral) throw new Error('нет нейтрала');
+    neutral.army = [];
+    const bot = new SimpleBot(BALANCE, BOT_PRESETS.normal.options);
+    const commands = bot.decide(sim.state, 0);
     const attack = commands.find((command) => command.type === 'SendFleet');
     expect(attack).toBeDefined();
-    if (!attack || attack.type !== 'SendFleet') return;
-    expect(attack.fromPlanetIds).toEqual([0]);
-    expect(attack.ratio).toBe(75);
-    expect(attack.toPlanetId).not.toBe(0);
+    if (attack?.type !== 'SendFleet') return;
+    expect(attack.toPlanetId).toBe(neutral.id);
   });
 
-  it('решает не каждый тик, а раз в интервал', () => {
+  it('лёгкий бот не атакует игрока, пока есть нейтралы', () => {
     const sim = arena();
-    const bot = new SimpleBot(BALANCE);
-    expect(bot.decide(sim.state, 0).length).toBeGreaterThan(0);
-    expect(bot.decide(sim.state, 0)).toEqual([]);
-
-    sim.advance(10);
-    expect(bot.decide(sim.state, 0).length).toBeGreaterThan(0);
-  });
-
-  it('оставляет резерв и не атакует малым гарнизоном', () => {
-    const sim = arena();
-    const home = sim.state.planets[0];
-    if (!home) throw new Error('нет дома');
-    setGarrison(home, 3000);
-
-    const bot = new SimpleBot(BALANCE);
-    const commands = bot.decide(sim.state, 0);
-    expect(commands.some((command) => command.type === 'SendFleet')).toBe(false);
-  });
-
-  it('ставит «Колесо ускорения», когда хватает семечек', () => {
-    const sim = arena();
-    const bot = new SimpleBot(BALANCE);
-    const boost = bot.decide(sim.state, 0).find((command) => command.type === 'ApplyBoost');
-
-    expect(boost?.type).toBe('ApplyBoost');
-    if (boost?.type !== 'ApplyBoost') return;
-    expect(boost.boost).toBe('production');
-    expect(boost.planetId).toBe(0);
-  });
-
-  it('не тратит семечки, которых нет', () => {
-    const sim = arena();
-    const player = sim.state.players[0];
-    if (!player) throw new Error('нет игрока');
-    player.seeds = 0;
-
-    const bot = new SimpleBot(BALANCE);
-    const commands = bot.decide(sim.state, 0);
-    expect(commands.some((command) => command.type === 'ApplyBoost')).toBe(false);
-  });
-
-  it('не атакует, если у цели сильный гарнизон', () => {
-    const sim = arena();
+    const playerPlanet = sim.state.planets[1];
+    if (!playerPlanet) throw new Error('нет планеты игрока');
+    playerPlanet.army = [];
     for (const planet of sim.state.planets) {
-      if (planet.ownerId === 0) continue;
-      setGarrison(planet, 400_000);
-    }
-
-    const bot = new SimpleBot(BALANCE);
-    const commands = bot.decide(sim.state, 0);
-    expect(commands.some((command) => command.type === 'SendFleet')).toBe(false);
-  });
-
-  it('ставит обучение, когда есть семечки и свободная очередь', () => {
-    const sim = arena();
-    const bot = new SimpleBot(BALANCE);
-    const training = bot.decide(sim.state, 0).find((command) => command.type === 'TrainTroops');
-
-    expect(training?.type).toBe('TrainTroops');
-    if (training?.type !== 'TrainTroops') return;
-    expect(training.kind).toBe('swordsman');
-    expect(training.amount).toBeGreaterThan(0);
-  });
-
-  it('клан задаёт, кого тренирует бот', () => {
-    const sim = arena();
-    const bot = new SimpleBot(BALANCE);
-    const training = bot.decide(sim.state, 1).find((command) => command.type === 'TrainTroops');
-
-    expect(training?.type).toBe('TrainTroops');
-    if (training?.type !== 'TrainTroops') return;
-    // игрок 1 — Джунгарские Звёздные, тренирует конницу
-    expect(training.kind).toBe('cavalry');
-  });
-
-  it('не учит, если семечек хватает только на буст', () => {
-    const sim = arena();
-    const player = sim.state.players[0];
-    if (!player) throw new Error('нет игрока');
-    player.seeds = BALANCE.troops.swordsman.costSeeds * 2;
-
-    const bot = new SimpleBot(BALANCE);
-    const commands = bot.decide(sim.state, 0);
-    expect(commands.some((command) => command.type === 'TrainTroops')).toBe(false);
-  });
-
-  it('молчит, если игрок выбыл', () => {
-    const sim = arena();
-    const player = sim.state.players[0];
-    if (!player) throw new Error('нет игрока');
-    player.alive = false;
-    const bot = new SimpleBot(BALANCE);
-    expect(bot.decide(sim.state, 0)).toEqual([]);
-  });
-
-  it('не считает чужие планеты своими', () => {
-    const sim = arena();
-    const bot = new SimpleBot(BALANCE);
-    const commands = bot.decide(sim.state, 1);
-    for (const command of commands) {
-      if (command.type !== 'SendFleet') continue;
-      for (const id of command.fromPlanetIds) {
-        expect(sim.state.planets[id]?.ownerId).toBe(1);
-      }
-    }
-  });
-});
-
-describe('сложность бота', () => {
-  it('лёгкий не тренирует и не ставит бусты', () => {
-    const sim = arena();
-    const bot = new SimpleBot(BALANCE, BOT_PRESETS.easy.options);
-    const commands = bot.decide(sim.state, 1);
-    expect(commands.some((command) => command.type === 'TrainTroops')).toBe(false);
-    expect(commands.some((command) => command.type === 'ApplyBoost')).toBe(false);
-  });
-
-  it('лёгкий не нападает на игрока, пока есть нейтралы', () => {
-    const sim = arena();
-    // игрок 1 ослаблен, но нейтралы сильны: лёгкому некуда идти, кроме игрока
-    setGarrison(sim.state.planets[1]!, 1000);
-    for (const planet of sim.state.planets) {
-      if (planet.ownerId === -1) setGarrison(planet, 400_000);
+      if (planet.ownerId !== -1) continue;
+      planet.army = [];
+      addUnits(
+        planet.army,
+        planFrom({ swordsman: 100 }),
+        () => sim.state.nextUnitId++,
+        BALANCE.troops,
+      );
     }
 
     const easy = new SimpleBot(BALANCE, BOT_PRESETS.easy.options);
-    const easyCommands = easy.decide(sim.state, 0);
-    expect(easyCommands.some((command) => command.type === 'SendFleet')).toBe(false);
+    const easyAttacks = easy
+      .decide(sim.state, 0)
+      .filter((command) => command.type === 'SendFleet');
+    expect(easyAttacks).toHaveLength(0);
 
-    const normal = new SimpleBot(BALANCE);
-    const normalCommands = normal.decide(sim.state, 0);
-    expect(normalCommands.some((command) => command.type === 'SendFleet')).toBe(true);
+    const normal = new SimpleBot(BALANCE, BOT_PRESETS.normal.options);
+    const normalAttacks = normal
+      .decide(sim.state, 0)
+      .filter((command) => command.type === 'SendFleet');
+    expect(normalAttacks.some((command) => command.type === 'SendFleet' && command.toPlanetId === 1)).toBe(
+      true,
+    );
   });
 
-  it('лёгкий идёт на игрока, когда нейтралов не осталось', () => {
+  it('включает снабжение на своём выключенном маршруте', () => {
     const sim = arena();
-    for (const planet of sim.state.planets) {
-      if (planet.ownerId === -1) planet.ownerId = 1;
-    }
-    setGarrison(sim.state.planets[1]!, 1000);
-
-    const easy = new SimpleBot(BALANCE, BOT_PRESETS.easy.options);
-    const commands = easy.decide(sim.state, 0);
-    expect(commands.some((command) => command.type === 'SendFleet')).toBe(true);
+    sim.state.routes.push({
+      id: 1,
+      ownerId: 0,
+      fromPlanetId: 0,
+      toPlanetId: 6,
+      weightPermille: 1000,
+      supplyEnabled: false,
+      supplyKinds: ['swordsman', 'archer', 'cavalry', 'cannon'],
+    });
+    const bot = new SimpleBot(BALANCE, BOT_PRESETS.normal.options);
+    const commands = bot.decide(sim.state, 0);
+    expect(commands.some((command) => command.type === 'EnableSupply')).toBe(true);
   });
 });

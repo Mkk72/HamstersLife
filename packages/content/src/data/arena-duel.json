@@ -4,18 +4,186 @@
   "height": 800,
   "playerCount": 2,
   "planets": [
-    { "id": 0, "size": "M", "x": 150, "y": 400, "ownerId": 0, "garrisonHamsters": 16 },
-    { "id": 1, "size": "M", "x": 1050, "y": 400, "ownerId": 1, "garrisonHamsters": 16 },
-    { "id": 2, "size": "S", "x": 350, "y": 250, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 3, "size": "S", "x": 350, "y": 550, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 4, "size": "S", "x": 250, "y": 550, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 5, "size": "S", "x": 850, "y": 250, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 6, "size": "S", "x": 850, "y": 550, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 7, "size": "S", "x": 950, "y": 550, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 8, "size": "S", "x": 450, "y": 400, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 9, "size": "S", "x": 750, "y": 400, "ownerId": -1, "garrisonHamsters": 9 },
-    { "id": 10, "size": "S", "x": 600, "y": 180, "ownerId": -1, "garrisonHamsters": 7 },
-    { "id": 11, "size": "S", "x": 600, "y": 620, "ownerId": -1, "garrisonHamsters": 7 },
-    { "id": 12, "size": "XL", "x": 600, "y": 400, "ownerId": -1, "garrisonHamsters": 16 }
+    {
+      "id": 0,
+      "size": "M",
+      "x": 150,
+      "y": 400,
+      "ownerId": 0,
+      "garrison": {
+        "swordsman": 18,
+        "archer": 6,
+        "cavalry": 0,
+        "cannon": 0
+      },
+      "plan": {
+        "swordsman": 36,
+        "archer": 24,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 1,
+      "size": "M",
+      "x": 1050,
+      "y": 400,
+      "ownerId": 1,
+      "garrison": {
+        "swordsman": 18,
+        "archer": 6,
+        "cavalry": 0,
+        "cannon": 0
+      },
+      "plan": {
+        "swordsman": 36,
+        "archer": 24,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 2,
+      "size": "S",
+      "x": 320,
+      "y": 260,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 6,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 3,
+      "size": "S",
+      "x": 880,
+      "y": 260,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 6,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 4,
+      "size": "S",
+      "x": 320,
+      "y": 540,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 6,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 5,
+      "size": "S",
+      "x": 880,
+      "y": 540,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 6,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 6,
+      "size": "M",
+      "x": 450,
+      "y": 400,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 10,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 7,
+      "size": "M",
+      "x": 750,
+      "y": 400,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 10,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 8,
+      "size": "L",
+      "x": 500,
+      "y": 180,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 16,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 9,
+      "size": "L",
+      "x": 700,
+      "y": 180,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 16,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 10,
+      "size": "L",
+      "x": 500,
+      "y": 620,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 16,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 11,
+      "size": "L",
+      "x": 700,
+      "y": 620,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 16,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    },
+    {
+      "id": 12,
+      "size": "XL",
+      "x": 600,
+      "y": 400,
+      "ownerId": -1,
+      "garrison": {
+        "swordsman": 24,
+        "archer": 0,
+        "cavalry": 0,
+        "cannon": 0
+      }
+    }
   ]
 }

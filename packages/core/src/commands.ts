@@ -1,20 +1,21 @@
 /**
- * Команды игрока. Все проверки — здесь, потому что та же функция вызывается
- * сервером: клиент присылает намерение, сервер применяет или отказывает.
- * Исход зависит только от состояния и контента — никаких Date, Math.random.
- *
- * `SendFleet` теперь создаёт постоянный маршрут: сразу уходит выбранная доля
- * гарнизона, а дальше по стрелке течёт производство (см. systems.ts).
- * Повторная стрелка на ту же цель меняет вес, не списывая войска заново.
+ * Команды игрока. Все проверки здесь: та же функция работает на клиенте,
+ * сервере и в повторе. Исход зависит только от состояния и контента.
  */
-import { MIN_FLEET_SIZE } from './combat';
-import { setBoost } from './boosts';
+import type {
+  Balance,
+  Command,
+  CommandResult,
+  GameState,
+  Planet,
+  Plan,
+  Route,
+  UnitKind,
+} from './types';
+import { UNIT_KINDS } from './types';
+import { clonePlan, countsOf, emptyPlan, planFrom, planSum, splitArmy, takeUnits } from './army';
+import { capacityOf, planFromPercents } from './production';
 import { launchFleet } from './fleets';
-import { garrisonOf, getPlanet, getPlayer } from './state';
-import { createTroopStack, allocateTroops, subtractTroops, TROOP_KINDS, troopTotal } from './troops';
-import type { Balance, Command, CommandResult, GameState, Planet, Route } from './types';
-import { BOOST_KINDS } from './types';
-import { HAMSTER } from './units';
 
 const ALLOWED_RATIOS: readonly number[] = [25, 50, 75, 100];
 
@@ -22,13 +23,29 @@ export function applyCommand(state: GameState, command: Command, balance: Balanc
   switch (command.type) {
     case 'SendFleet':
       return sendFleet(state, command, balance);
-    case 'ApplyBoost':
-      return applyBoost(state, command, balance);
+    case 'SetPlan':
+      return setPlan(state, command, balance);
+    case 'ResetPlan':
+      return resetPlan(state, command);
+    case 'ApplyTemplate':
+      return applyTemplate(state, command, balance);
+    case 'EnableSupply':
+      return enableSupply(state, command);
     case 'RemoveRoute':
       return removeRoute(state, command);
-    case 'TrainTroops':
-      return trainTroops(state, command, balance);
   }
+}
+
+function validatePlayer(state: GameState, playerId: number): CommandResult | null {
+  const player = state.players[playerId];
+  if (!player || !player.alive) return { ok: false, error: 'player-dead' };
+  return null;
+}
+
+function findRoute(state: GameState, from: number, to: number): Route | undefined {
+  return state.routes.find(
+    (route) => route.fromPlanetId === from && route.toPlanetId === to,
+  );
 }
 
 function sendFleet(
@@ -36,28 +53,31 @@ function sendFleet(
   command: Extract<Command, { type: 'SendFleet' }>,
   balance: Balance,
 ): CommandResult {
-  const player = getPlayer(state, command.playerId);
-  if (!player || !player.alive) return { ok: false, error: 'player-dead' };
+  const dead = validatePlayer(state, command.playerId);
+  if (dead) return dead;
   if (!ALLOWED_RATIOS.includes(command.ratio)) return { ok: false, error: 'invalid-ratio' };
+  if (command.kind !== undefined && !UNIT_KINDS.includes(command.kind)) {
+    return { ok: false, error: 'unknown-kind' };
+  }
 
-  const target = getPlanet(state, command.toPlanetId);
+  const target = state.planets[command.toPlanetId];
   if (!target) return { ok: false, error: 'unknown-planet' };
 
   const sources: Planet[] = [];
   const seen = new Set<number>();
   for (const planetId of command.fromPlanetIds) {
-    const planet = getPlanet(state, planetId);
+    const planet = state.planets[planetId];
     if (!planet) return { ok: false, error: 'unknown-planet' };
     if (planet.ownerId !== command.playerId) return { ok: false, error: 'not-your-planet' };
+    if (planet.battleId !== null) return { ok: false, error: 'in-battle' };
     if (seen.has(planetId)) continue;
     seen.add(planetId);
     sources.push(planet);
   }
-
   if (seen.has(command.toPlanetId)) return { ok: false, error: 'same-planet' };
   if (sources.length === 0) return { ok: false, error: 'no-troops' };
 
-  // Лимит маршрутов проверяем до изменений, чтобы команда была атомарной.
+  // Лимит маршрутов — до изменений, чтобы команда была атомарной.
   for (const planet of sources) {
     if (findRoute(state, planet.id, target.id)) continue;
     const used = state.routes.filter((route) => route.fromPlanetId === planet.id).length;
@@ -65,50 +85,123 @@ function sendFleet(
   }
 
   const fleetIds: number[] = [];
-
   for (const planet of sources) {
-    const existing = findRoute(state, planet.id, target.id);
-    if (existing) {
-      // Повторная стрелка меняет вес, войска заново не списываются.
-      existing.weightPermille = command.ratio * 10;
-      continue;
+    if (!findRoute(state, planet.id, target.id)) {
+      state.routes.push({
+        id: state.nextRouteId,
+        ownerId: command.playerId,
+        fromPlanetId: planet.id,
+        toPlanetId: target.id,
+        weightPermille: command.ratio * 10,
+        supplyEnabled: false,
+        supplyKinds: [...UNIT_KINDS],
+      });
+      state.nextRouteId += 1;
     }
 
-    const route: Route = {
-      id: state.nextRouteId,
-      ownerId: command.playerId,
-      fromPlanetId: planet.id,
-      toPlanetId: target.id,
-      weightPermille: command.ratio * 10,
-      pending: createTroopStack(),
-    };
-    state.nextRouteId += 1;
-    state.routes.push(route);
-
-    const amount = Math.floor((garrisonOf(planet) * command.ratio) / 100);
-    const part = allocateTroops(planet.troops, amount, command.composition);
-    if (troopTotal(part) < MIN_FLEET_SIZE) continue;
-    planet.troops = subtractTroops(planet.troops, part);
-    const fleet = launchFleet(state, balance, command.playerId, planet, target.id, part);
+    const split = splitArmy(planet.army, command.ratio, command.kind);
+    if (split.taken.length === 0) continue;
+    planet.army = split.remaining;
+    const fleet = launchFleet(
+      state,
+      balance,
+      command.playerId,
+      planet,
+      target.id,
+      split.taken,
+    );
     if (fleet) fleetIds.push(fleet.id);
   }
 
+  if (fleetIds.length === 0) return { ok: false, error: 'no-troops' };
   return { ok: true, fleetIds };
 }
 
-function findRoute(state: GameState, fromPlanetId: number, toPlanetId: number): Route | undefined {
-  return state.routes.find(
-    (route) => route.fromPlanetId === fromPlanetId && route.toPlanetId === toPlanetId,
-  );
+function setPlan(
+  state: GameState,
+  command: Extract<Command, { type: 'SetPlan' }>,
+  balance: Balance,
+): CommandResult {
+  const dead = validatePlayer(state, command.playerId);
+  if (dead) return dead;
+  const planet = state.planets[command.planetId];
+  if (!planet) return { ok: false, error: 'unknown-planet' };
+  if (planet.ownerId !== command.playerId) return { ok: false, error: 'not-your-planet' };
+
+  for (const key of Object.keys(command.plan)) {
+    if (!UNIT_KINDS.includes(key as UnitKind)) return { ok: false, error: 'unknown-kind' };
+  }
+  const next = clonePlan(planet.plan);
+  for (const kind of UNIT_KINDS) {
+    const value = command.plan[kind];
+    if (value === undefined) continue;
+    if (!Number.isInteger(value) || value < 0) return { ok: false, error: 'invalid-plan' };
+    next[kind] = value;
+  }
+  if (planSum(next) > capacityOf(planet, balance)) {
+    return { ok: false, error: 'invalid-plan' };
+  }
+  planet.plan = next;
+  clampProgress(planet, balance);
+  return { ok: true };
+}
+
+function resetPlan(
+  state: GameState,
+  command: Extract<Command, { type: 'ResetPlan' }>,
+): CommandResult {
+  const dead = validatePlayer(state, command.playerId);
+  if (dead) return dead;
+  const planet = state.planets[command.planetId];
+  if (!planet) return { ok: false, error: 'unknown-planet' };
+  if (planet.ownerId !== command.playerId) return { ok: false, error: 'not-your-planet' };
+  planet.plan = emptyPlan();
+  planet.production = emptyPlan();
+  return { ok: true };
+}
+
+function applyTemplate(
+  state: GameState,
+  command: Extract<Command, { type: 'ApplyTemplate' }>,
+  balance: Balance,
+): CommandResult {
+  const dead = validatePlayer(state, command.playerId);
+  if (dead) return dead;
+  const planet = state.planets[command.planetId];
+  if (!planet) return { ok: false, error: 'unknown-planet' };
+  if (planet.ownerId !== command.playerId) return { ok: false, error: 'not-your-planet' };
+  const template = balance.templates.find((item) => item.id === command.templateId);
+  if (!template) return { ok: false, error: 'unknown-template' };
+  planet.plan = planFromPercents(template.percents, capacityOf(planet, balance));
+  clampProgress(planet, balance);
+  return { ok: true };
+}
+
+function enableSupply(
+  state: GameState,
+  command: Extract<Command, { type: 'EnableSupply' }>,
+): CommandResult {
+  const dead = validatePlayer(state, command.playerId);
+  if (dead) return dead;
+  const route = state.routes.find((item) => item.id === command.routeId);
+  if (!route) return { ok: false, error: 'unknown-route' };
+  if (route.ownerId !== command.playerId) return { ok: false, error: 'not-your-route' };
+  if (command.kinds) {
+    for (const kind of command.kinds) {
+      if (!UNIT_KINDS.includes(kind)) return { ok: false, error: 'unknown-kind' };
+    }
+    route.supplyKinds = [...new Set(command.kinds)];
+  }
+  route.supplyEnabled = command.enabled;
+  return { ok: true };
 }
 
 function removeRoute(
   state: GameState,
   command: Extract<Command, { type: 'RemoveRoute' }>,
 ): CommandResult {
-  const player = getPlayer(state, command.playerId);
-  if (!player || !player.alive) return { ok: false, error: 'player-dead' };
-
+  const dead = validatePlayer(state, command.playerId);
+  if (dead) return dead;
   const index = state.routes.findIndex((route) => route.id === command.routeId);
   if (index < 0) return { ok: false, error: 'unknown-route' };
   const route = state.routes[index];
@@ -119,62 +212,19 @@ function removeRoute(
   return { ok: true };
 }
 
-/** Поставить заказ на обучение: семечки списываются сразу, время — в очереди. */
-function trainTroops(
-  state: GameState,
-  command: Extract<Command, { type: 'TrainTroops' }>,
-  balance: Balance,
-): CommandResult {
-  const player = getPlayer(state, command.playerId);
-  if (!player || !player.alive) return { ok: false, error: 'player-dead' };
-
-  const planet = getPlanet(state, command.planetId);
-  if (!planet) return { ok: false, error: 'unknown-planet' };
-  if (planet.ownerId !== command.playerId) return { ok: false, error: 'not-your-planet' };
-  if (!TROOP_KINDS.includes(command.kind)) return { ok: false, error: 'unknown-troop' };
-  if (!Number.isInteger(command.amount) || command.amount < 1) {
-    return { ok: false, error: 'invalid-amount' };
+function clampProgress(planet: Planet, balance: Balance): void {
+  const counts = countsOf(planet.army);
+  for (const kind of UNIT_KINDS) {
+    const missing = Math.max(0, planet.plan[kind] - counts[kind]);
+    const maxProgress = missing * balance.troops[kind].work;
+    if (planet.production[kind] > maxProgress) planet.production[kind] = maxProgress;
   }
-  if (planet.training.length >= balance.maxTrainingQueue) {
-    return { ok: false, error: 'queue-full' };
-  }
-
-  const stats = balance.troops[command.kind];
-  const cost = command.amount * stats.costSeeds;
-  if (player.seeds < cost) return { ok: false, error: 'not-enough-seeds' };
-
-  player.seeds -= cost;
-  planet.training.push({
-    kind: command.kind,
-    remaining: command.amount * HAMSTER,
-    progressTicks: 0,
-  });
-  return { ok: true };
 }
 
-function applyBoost(
-  state: GameState,
-  command: Extract<Command, { type: 'ApplyBoost' }>,
-  balance: Balance,
-): CommandResult {
-  const player = getPlayer(state, command.playerId);
-  if (!player || !player.alive) return { ok: false, error: 'player-dead' };
-  if (!BOOST_KINDS.includes(command.boost)) return { ok: false, error: 'wrong-boost-target' };
-
-  const planet = getPlanet(state, command.planetId);
-  if (!planet) return { ok: false, error: 'unknown-planet' };
-  if (planet.ownerId !== command.playerId) return { ok: false, error: 'wrong-boost-target' };
-
-  const stats = balance.boosts[command.boost];
-  const now = state.tick;
-  if (player.boostCooldownUntilTick[command.boost] > now) return { ok: false, error: 'cooldown' };
-  if (player.seeds < stats.cost) return { ok: false, error: 'not-enough-seeds' };
-
-  player.seeds -= stats.cost;
-  player.boostCooldownUntilTick[command.boost] = now + stats.cooldownTicks;
-
-  const untilTick = now + stats.durationTicks;
-  setBoost(planet, command.boost, untilTick);
-
-  return { ok: true };
+/** Экспорт для тестов: сколько юнитов уйдёт при отправке. */
+export function plannedSendCounts(planet: Planet, ratio: number, kind?: UnitKind): Plan {
+  const split = splitArmy(planet.army, ratio, kind);
+  return countsOf(split.taken);
 }
+
+export { takeUnits, planFrom };

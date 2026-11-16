@@ -1,49 +1,85 @@
 /**
- * Тестовый баланс. Числа — эталон для тестов ядра; рабочие значения живут в
- * пакете `@hamsters/content` и не должны расходиться с этими проверками по
- * смыслу (производство кратно 20, чтобы делиться на тики без дробей).
+ * Тестовый баланс: числа-эталоны для ядра. Рабочие значения — в @hamsters/content.
  */
 import type { Balance } from '../types';
 
 export const testBalance: Balance = {
   rulesVersion: 1,
-  contentVersion: 1,  planetSizes: {
-    S: { capacity: 6000, productionPerSecond: 600 },
-    M: { capacity: 12_000, productionPerSecond: 1000 },
-    L: { capacity: 24_000, productionPerSecond: 1600 },
-    XL: { capacity: 40_000, productionPerSecond: 2400 },
+  contentVersion: 1,
+  planetSizes: {
+    S: { capacity: 40, powerPerTick: 40 },
+    M: { capacity: 60, powerPerTick: 50 },
+    L: { capacity: 80, powerPerTick: 60 },
+    XL: { capacity: 100, powerPerTick: 70 },
   },
   flightSpeedUnitsPerSecond: 100,
-  seedsPerPlanetPerSecond: 4000,
-  startingSeeds: 60_000,
-  boosts: {
-    production: { cost: 40_000, durationTicks: 300, cooldownTicks: 600, factorPermille: 2000 },
-    speed: { cost: 30_000, durationTicks: 200, cooldownTicks: 500, factorPermille: 1600 },
-    defense: { cost: 50_000, durationTicks: 240, cooldownTicks: 600, factorPermille: 1800 },
-  },
-  minCaptureGarrison: 1000,
   maxRoutesPerPlanet: 4,
-  minRouteFleet: 1000,
-  maxTrainingQueue: 3,
-  combat: {
-    strongPermille: 1400,
-    weakPermille: 700,
-    phaseLossPermille: 300,
-    rangedEfficiencyPermille: 1000,
-    approachEfficiencyPermille: 800,
-    meleeEfficiencyPermille: 1200,
-  },
+  supply: { reservePermille: 500, intervalTicks: 40 },
+  defense: { damagePermille: 850 },
+  capturePercents: { swordsman: 60, archer: 40, cavalry: 0, cannon: 0 },
+  startingArmy: { swordsman: 18, archer: 6, cavalry: 0, cannon: 0 },
+  startingPlan: { swordsman: 36, archer: 24, cavalry: 0, cannon: 0 },
+  neutralGarrison: { S: 6, M: 10, L: 16, XL: 24 },
   troops: {
-    swordsman: { name: 'Мечник', shortName: 'Меч', role: 'melee', attack: 1000, defense: 1400, speedPermille: 1000, range: 0, trainTicks: 60, costSeeds: 20_000, strongAgainst: ['archer'], weakAgainst: ['cannon'] },
-    archer: { name: 'Лучник', shortName: 'Лук', role: 'ranged', attack: 900, defense: 700, speedPermille: 1000, range: 1, trainTicks: 70, costSeeds: 22_000, strongAgainst: ['cavalry'], weakAgainst: ['cannon'] },
-    cannon: { name: 'Пушка', shortName: 'Пуш', role: 'siege', attack: 1600, defense: 500, speedPermille: 600, range: 2, trainTicks: 110, costSeeds: 35_000, strongAgainst: ['swordsman'], weakAgainst: ['cavalry'] },
-    cavalry: { name: 'Конница', shortName: 'Кон', role: 'melee', attack: 1300, defense: 900, speedPermille: 1600, range: 0, trainTicks: 80, costSeeds: 26_000, strongAgainst: ['cannon', 'archer'], weakAgainst: ['swordsman'] },
-    mage: { name: 'Маг', shortName: 'Маг', role: 'support', attack: 700, defense: 600, speedPermille: 1000, range: 2, trainTicks: 120, costSeeds: 40_000, strongAgainst: ['swordsman', 'archer'], weakAgainst: ['cavalry'] },
+    swordsman: {
+      name: 'Мечник',
+      shortName: 'Меч',
+      role: 'melee',
+      hp: 36,
+      damage: 5,
+      attackIntervalTicks: 4,
+      firstAttackTicks: 24,
+      work: 1000,
+      priority: ['cavalry', 'swordsman', 'archer', 'cannon'],
+      counters: { cavalry: 2000 },
+    },
+    archer: {
+      name: 'Лучник',
+      shortName: 'Лук',
+      role: 'ranged',
+      hp: 18,
+      damage: 5,
+      attackIntervalTicks: 4,
+      firstAttackTicks: 4,
+      work: 1500,
+      priority: ['swordsman', 'archer', 'cavalry', 'cannon'],
+      counters: { swordsman: 1500 },
+    },
+    cavalry: {
+      name: 'Конница',
+      shortName: 'Кон',
+      role: 'melee',
+      hp: 48,
+      damage: 10,
+      attackIntervalTicks: 4,
+      firstAttackTicks: 8,
+      work: 3000,
+      priority: ['cannon', 'archer', 'cavalry', 'swordsman'],
+      counters: { archer: 2000, cannon: 2000 },
+    },
+    cannon: {
+      name: 'Пушка',
+      shortName: 'Пуш',
+      role: 'ranged',
+      hp: 90,
+      damage: 45,
+      attackIntervalTicks: 16,
+      firstAttackTicks: 16,
+      work: 4000,
+      priority: ['swordsman', 'cannon', 'archer', 'cavalry'],
+      counters: { swordsman: 2000 },
+    },
   },
-  clans: {
-    goldenCheeks: { name: 'Золотые Щёки', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
-    jungarian: { name: 'Джунгарские', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
-    syrian: { name: 'Сирийская Броня', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
-    darkRoborowski: { name: 'Тёмный Роборовски', productionPermille: 1000, defensePermille: 1000, speedPermille: 1000, spellCostPermille: 1000 },
-  },
+  templates: [
+    {
+      id: 'balanced',
+      name: 'Сбалансированный',
+      percents: { swordsman: 45, archer: 30, cavalry: 20, cannon: 5 },
+    },
+    {
+      id: 'swords',
+      name: 'Только мечники',
+      percents: { swordsman: 100, archer: 0, cavalry: 0, cannon: 0 },
+    },
+  ],
 };

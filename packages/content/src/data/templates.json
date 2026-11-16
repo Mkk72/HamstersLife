@@ -1,0 +1,10 @@
+[
+  { "id": "swords-archers", "name": "Мечники + лучники", "percents": { "swordsman": 60, "archer": 40, "cavalry": 0, "cannon": 0 } },
+  { "id": "balanced", "name": "Сбалансированный", "percents": { "swordsman": 45, "archer": 30, "cavalry": 20, "cannon": 5 } },
+  { "id": "raid", "name": "Рейд", "percents": { "swordsman": 30, "archer": 0, "cavalry": 70, "cannon": 0 } },
+  { "id": "siege", "name": "Осада", "percents": { "swordsman": 50, "archer": 30, "cavalry": 0, "cannon": 20 } },
+  { "id": "swords", "name": "Только мечники", "percents": { "swordsman": 100, "archer": 0, "cavalry": 0, "cannon": 0 } },
+  { "id": "archers", "name": "Только лучники", "percents": { "swordsman": 0, "archer": 100, "cavalry": 0, "cannon": 0 } },
+  { "id": "cavalry", "name": "Только конница", "percents": { "swordsman": 0, "archer": 0, "cavalry": 100, "cannon": 0 } },
+  { "id": "cannons", "name": "Только пушки", "percents": { "swordsman": 0, "archer": 0, "cavalry": 0, "cannon": 100 } }
+]

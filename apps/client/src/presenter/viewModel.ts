@@ -1,16 +1,17 @@
 /**
- * Модель представления: то, что вид получает на отрисовку. Здесь нет ни Pixi,
- * ни DOM — только числа и строки, поэтому презентер и его тесты живут без окна.
+ * Модель представления: только числа и строки, без Pixi и DOM.
  */
-import type { BoostKind, MilliUnits, PlanetId, PlanetSize, PlayerId, TroopKind } from '@hamsters/core';
+import type { BattleId, PlanetId, PlanetSize, PlayerId, Ratio, UnitKind } from '@hamsters/core';
 
 export type QualityLevel = 'low' | 'medium' | 'high';
 
-export interface BoostsView {
-  /** Остаток действия в секундах; 0 — не действует. */
-  readonly production: number;
-  readonly speed: number;
-  readonly defense: number;
+export interface UnitCountView {
+  readonly kind: UnitKind;
+  readonly short: string;
+  readonly plan: number;
+  readonly have: number;
+  /** Род сейчас производится (есть прогресс и недостача). */
+  readonly producing: boolean;
 }
 
 export interface PlanetView {
@@ -19,13 +20,14 @@ export interface PlanetView {
   readonly y: number;
   readonly size: PlanetSize;
   readonly ownerId: PlayerId;
-  readonly garrison: MilliUnits;
+  readonly total: number;
+  readonly units: readonly UnitCountView[];
   readonly selected: boolean;
-  /** Под курсором во время протяжки — контур будущей цели. */
   readonly highlighted: boolean;
-  /** Планета человека и партия только началась — повод для подписи «моя». */
-  readonly mine: boolean;
-  readonly boosts: BoostsView;
+  readonly battleId: BattleId | null;
+  /** Экранная позиция для панели плана; null, если вне экрана. */
+  readonly screenX: number;
+  readonly screenY: number;
 }
 
 export interface FleetView {
@@ -35,9 +37,9 @@ export interface FleetView {
   readonly fromY: number;
   readonly toX: number;
   readonly toY: number;
-  /** 0 — только вылетел, 1 — прилетел. */
   readonly progress: number;
-  readonly troops: MilliUnits;
+  readonly total: number;
+  readonly units: readonly { readonly kind: UnitKind; readonly count: number }[];
 }
 
 export interface ArrowView {
@@ -49,7 +51,6 @@ export interface ArrowView {
   readonly valid: boolean;
 }
 
-/** Постоянный маршрут: стрелка, по которой непрерывно течёт производство. */
 export interface RouteView {
   readonly id: number;
   readonly ownerId: PlayerId;
@@ -57,71 +58,33 @@ export interface RouteView {
   readonly fromY: number;
   readonly toX: number;
   readonly toY: number;
-  readonly weightPermille: number;
-  readonly pending: MilliUnits;
+  readonly supplyEnabled: boolean;
 }
 
-export interface BoostButtonView {
-  readonly kind: BoostKind;
-  readonly cost: MilliUnits;
-  readonly affordable: boolean;
-  readonly cooldownSeconds: number;
-  readonly ready: boolean;
-  /** Почему кнопка недоступна; null — доступна. */
-  readonly blocked: string | null;
-  /** Планета, к которой применится буст; null — нет выбора. */
-  readonly planetId: PlanetId | null;
-}
-
-/** Гарнизон выбранной планеты и её предел. */
-export interface GarrisonView {
-  readonly total: MilliUnits;
-  readonly capacity: MilliUnits;
-}
-
-export interface TrainingQueueView {
-  readonly used: number;
-  readonly max: number;
-}
-
-/** Кнопка обучения в казарме: цена за одного хомяка. */
-export interface TrainingButtonView {
-  readonly kind: TroopKind;
-  readonly name: string;
-  readonly short: string;
-  readonly cost: MilliUnits;
-  /** Сколько секунд тренируется один хомяк этого рода. */
-  readonly trainSeconds: number;
-  readonly affordable: boolean;
-  readonly ready: boolean;
-  /** Сколько заказов этого рода уже в очереди (включая активный). */
-  readonly queued: number;
-  /** Прогресс активного заказа этого рода, 0..1. */
-  readonly progress: number;
-  /** Почему кнопка недоступна; null — доступна. */
-  readonly blocked: string | null;
-}
-
-/** Выбор состава отправляемого отряда. */
-export type CompositionMode = 'all' | 'mixed' | TroopKind;
-
-export interface TroopCountView {
-  readonly kind: TroopKind;
-  readonly name: string;
-  readonly short: string;
-  readonly count: MilliUnits;
-}
-
-export interface CompositionTemplateView {
+export interface TemplateView {
   readonly id: string;
-  readonly label: string;
-  readonly active: boolean;
+  readonly name: string;
 }
 
-export interface CompositionView {
-  readonly units: readonly TroopCountView[];
-  readonly templates: readonly CompositionTemplateView[];
-  readonly mode: CompositionMode;
+export interface RouteToggleView {
+  readonly id: number;
+  readonly label: string;
+  readonly enabled: boolean;
+}
+
+export interface PlanPanelView {
+  readonly planetId: PlanetId;
+  readonly screenX: number;
+  readonly screenY: number;
+  readonly size: PlanetSize;
+  readonly total: number;
+  readonly capacity: number;
+  readonly planTotal: number;
+  readonly units: readonly UnitCountView[];
+  readonly templates: readonly TemplateView[];
+  readonly routes: readonly RouteToggleView[];
+  readonly message: string | null;
+  readonly canUndoReset: boolean;
 }
 
 export interface OutcomeView {
@@ -130,25 +93,22 @@ export interface OutcomeView {
   readonly youWon: boolean;
 }
 
+export interface SendPreviewView {
+  readonly short: string;
+  readonly count: number;
+}
+
 export interface HudView {
-  readonly seeds: MilliUnits;
   readonly mine: number;
   readonly enemy: number;
   readonly neutral: number;
-  /** Название клана игрока. */
-  readonly clanName: string;
-  readonly boosts: readonly BoostButtonView[];
-  readonly training: readonly TrainingButtonView[];
-  readonly composition: CompositionView;
-  /** Гарнизон выбранной планеты: сколько есть и сколько влезает. */
-  readonly garrison: GarrisonView;
-  readonly queue: TrainingQueueView;
-  /** Короткое подтверждение действия или причина отказа. */
-  readonly message: string | null;
+  readonly ratio: Ratio;
+  readonly panel: PlanPanelView | null;
+  /** Точный состав отряда до отпускания стрелки. */
+  readonly sendPreview: readonly SendPreviewView[] | null;
   readonly outcome: OutcomeView | null;
   readonly hint: string | null;
-  /** Обнаружена правка защищённых значений в клиенте. */
-  readonly tampered: boolean;
+  readonly battleCount: number;
 }
 
 export interface BoardView {
@@ -160,24 +120,16 @@ export interface BoardView {
   readonly hud: HudView;
 }
 
-/** Вид, который реализует Pixi-сцена. Презентер не знает её класса. */
 export interface GameView {
   render(view: BoardView): void;
   setQuality(level: QualityLevel): void;
   playCapture(planetId: PlanetId): void;
-  /** Два встречных отряда столкнулись: вспышка в точке встречи. */
   playInterception(x: number, y: number): void;
-  playBoost(planetId: PlanetId, kind: BoostKind): void;
-  /** Отряд ушёл с планеты — короткий звук и вспышка, без знания правил. */
   playSend(): void;
-  /** Команда отклонена: короткий сигнал, чтобы игрок понял причину. */
   playError(): void;
-  /** Выбрана планета. */
   playSelect(): void;
-  /** Партия закончилась: короткая музыкальная фраза. */
   playOutcome(won: boolean): void;
-  /** Маршрут отрезан. */
   playCut(): void;
-  /** Заказ на обучение принят. */
-  playTrain(): void;
+  /** Мировые координаты → экранные (для панели рядом с планетой). */
+  toScreen(x: number, y: number): { x: number; y: number };
 }

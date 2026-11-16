@@ -1,15 +1,22 @@
 /**
  * Создание партии из описания карты.
  *
- * Правило: id планет — плотные от 0 до n−1, массив планет индексируется по id.
- * Это даёт прямой доступ без Map и одинаковый порядок обхода (важно для хэша).
+ * id планет плотные от 0 до n−1; массивы обходятся в этом порядке — важно для
+ * хэша и детерминизма. Армия собирается из целых юнитов с постоянными id.
  */
-import type { Balance, GameState, MapDefinition, Planet, PlanetId, PlayerState } from './types';
-import { createBoosts } from './boosts';
-import { createTroopStack, troopTotal } from './troops';
-import { CLAN_IDS, NEUTRAL_OWNER } from './types';
-import { HAMSTER, PERMILLE } from './units';
-import type { MilliUnits } from './units';
+import type {
+  Army,
+  Balance,
+  GameState,
+  MapDefinition,
+  MapPlanet,
+  Planet,
+  PlayerState,
+  UnitKind,
+  UnitStats,
+} from './types';
+import { NEUTRAL_OWNER, UNIT_KINDS } from './types';
+import { addUnits, clonePlan, emptyPlan, planFrom, planSum } from './army';
 
 export class MapValidationError extends Error {
   constructor(message: string) {
@@ -18,7 +25,11 @@ export class MapValidationError extends Error {
   }
 }
 
-function validateMap(map: MapDefinition): void {
+function capacityFor(size: Planet['size'], balance: Balance): number {
+  return balance.planetSizes[size].capacity;
+}
+
+function validateMap(map: MapDefinition, balance: Balance): void {
   if (map.playerCount < 2) throw new MapValidationError('нужно хотя бы два игрока');
   if (map.planets.length === 0) throw new MapValidationError('на карте нет планет');
 
@@ -31,11 +42,21 @@ function validateMap(map: MapDefinition): void {
         throw new MapValidationError(`планета ${planet.id}: владелец ${planet.ownerId} вне диапазона`);
       }
     }
-    if (!Number.isInteger(planet.garrisonHamsters) || planet.garrisonHamsters < 0) {
-      throw new MapValidationError(`планета ${planet.id}: гарнизон должен быть целым и неотрицательным`);
+    const capacity = capacityFor(planet.size, balance);
+    const plan = planet.plan ?? planet.garrison;
+    if (planSum(plan) > capacity) {
+      throw new MapValidationError(`планета ${planet.id}: план больше вместимости`);
     }
-    if (planet.defensePermille !== undefined && planet.defensePermille < PERMILLE) {
-      throw new MapValidationError(`планета ${planet.id}: защита не может быть ниже 1.0`);
+    for (const kind of UNIT_KINDS) {
+      if (!Number.isInteger(planet.garrison[kind] ?? 0) || (planet.garrison[kind] ?? 0) < 0) {
+        throw new MapValidationError(`планета ${planet.id}: гарнизон должен быть целым`);
+      }
+      if ((plan[kind] ?? 0) < 0) {
+        throw new MapValidationError(`планета ${planet.id}: план не может быть отрицательным`);
+      }
+    }
+    if (planet.ownerId === NEUTRAL_OWNER && planet.garrison.cavalry + planet.garrison.cannon > 0) {
+      throw new MapValidationError(`нейтральная планета ${planet.id} может иметь только мечников`);
     }
   }
 
@@ -51,29 +72,40 @@ function validateMap(map: MapDefinition): void {
 }
 
 export function createGameState(map: MapDefinition, balance: Balance, seed: number): GameState {
-  validateMap(map);
+  validateMap(map, balance);
+
+  let nextUnitId = 1;
+  const nextId = (): number => {
+    const id = nextUnitId;
+    nextUnitId += 1;
+    return id;
+  };
 
   const planets: Planet[] = map.planets
     .slice()
     .sort((a, b) => a.id - b.id)
-    .map((planet) => ({
-      id: planet.id,
-      size: planet.size,
-      x: planet.x,
-      y: planet.y,
-      defensePermille: planet.defensePermille ?? PERMILLE,
-      ownerId: planet.ownerId,
-      troops: createTroopStack({ swordsman: planet.garrisonHamsters * HAMSTER }),
-      training: [],
-      boosts: createBoosts(),
-    }));
+    .map((planet: MapPlanet) => {
+      const army: Army = [];
+      addUnits(army, planFrom(planet.garrison), nextId, balance.troops);
+      return {
+        id: planet.id,
+        size: planet.size,
+        x: planet.x,
+        y: planet.y,
+        ownerId: planet.ownerId,
+        army,
+        plan:
+          planet.ownerId === NEUTRAL_OWNER
+            ? emptyPlan()
+            : clonePlan(planet.plan ?? planet.garrison),
+        production: emptyPlan(),
+        battleId: null,
+      };
+    });
 
   const players: PlayerState[] = Array.from({ length: map.playerCount }, (_, id) => ({
     id,
-    clanId: CLAN_IDS[id % CLAN_IDS.length] ?? 'goldenCheeks',
-    seeds: balance.startingSeeds,
     alive: true,
-    boostCooldownUntilTick: { production: 0, speed: 0, defense: 0 },
   }));
 
   return {
@@ -83,48 +115,55 @@ export function createGameState(map: MapDefinition, balance: Balance, seed: numb
     planets,
     fleets: [],
     routes: [],
+    battles: [],
     players,
     events: [],
+    nextUnitId,
     nextFleetId: 1,
     nextRouteId: 1,
+    nextBattleId: 1,
   };
 }
 
-/** Планета по id; undefined, если такого id нет. */
 export function getPlanet(state: GameState, planetId: number): Planet | undefined {
   return state.planets[planetId];
 }
 
-/** Игрок по id; undefined, если id вне диапазона. */
 export function getPlayer(state: GameState, playerId: number): PlayerState | undefined {
   return state.players[playerId];
 }
 
-/** Жив ли игрок (есть планеты или флоты). */
+/** Жив ли игрок: планеты, флоты или незавершённые бои. */
 export function hasForces(state: GameState, playerId: number): boolean {
   return (
     state.planets.some((planet) => planet.ownerId === playerId) ||
-    state.fleets.some((fleet) => fleet.ownerId === playerId)
+    state.fleets.some((fleet) => fleet.ownerId === playerId) ||
+    state.battles.some(
+      (battle) => battle.attackerOwnerId === playerId || battle.defenderOwnerId === playerId,
+    )
   );
 }
 
-/** Численность гарнизона планеты — суммарно по родам войск. */
-export function garrisonOf(planet: Planet): MilliUnits {
-  return troopTotal(planet.troops);
+/** Численность гарнизона планеты. */
+export function garrisonOf(planet: Planet): number {
+  return planet.army.length;
 }
 
-/** Численность гарнизона планеты по id (undefined, если планеты нет). */
-export function garrisonOfPlanet(state: GameState, planetId: PlanetId): MilliUnits | undefined {
+export function garrisonOfPlanet(state: GameState, planetId: number): number | undefined {
   const planet = state.planets[planetId];
-  return planet ? troopTotal(planet.troops) : undefined;
+  return planet ? planet.army.length : undefined;
 }
 
-/** Численность отряда. */
-export function fleetTroops(fleet: { troops: Planet['troops'] }): MilliUnits {
-  return troopTotal(fleet.troops);
+export function totalArmy(army: readonly { kind: UnitKind }[]): Record<UnitKind, number> {
+  const counts = emptyPlan();
+  for (const unit of army) counts[unit.kind] += 1;
+  return counts;
 }
 
-/** Поставить гарнизон как базовых бойцов (мечников) — для тестов и сценариев. */
-export function setGarrison(planet: Planet, total: MilliUnits): void {
-  planet.troops = createTroopStack({ swordsman: total });
+/** Тестовая/диагностическая замена гарнизона: базовые юниты одного рода. */
+export function setGarrison(planet: Planet, total: number, stats: Record<UnitKind, UnitStats>): void {
+  planet.army = [];
+  const army: Army = [];
+  addUnits(army, { ...emptyPlan(), swordsman: total }, () => planet.id * 100_000 + army.length + 1, stats);
+  planet.army = army;
 }

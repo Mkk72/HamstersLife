@@ -1,98 +1,52 @@
-import type { MilliUnits } from './units';
-import type { TroopKind, TroopStack } from './troops';
+/**
+ * Типы состояния нового первого этапа.
+ *
+ * Войска — целые юниты (не milli-единицы): один юнит занимает одну ячейку,
+ * имеет собственные HP и таймеры. Это упрощает план гарнизона, бой и снабжение.
+ */
 
-export type { TroopStack } from './troops';
-
-/** Владелец планеты «нейтрал». Игроки нумеруются с 0. */
 export const NEUTRAL_OWNER = -1;
 
-/** Кланы: небольшие бонусы, чтобы PvP оставался честным. */
-export const CLAN_IDS = ['goldenCheeks', 'jungarian', 'syrian', 'darkRoborowski'] as const;
-
-export type ClanId = (typeof CLAN_IDS)[number];
-
-export type TroopRole = 'melee' | 'ranged' | 'siege' | 'support';
-
-/** Характеристики рода войск: числа для фазового боя и тренировки. */
-export interface TroopStats {
-  readonly name: string;
-  /** Короткая подпись для панелей: «Меч», «Лук» и т.п. */
-  readonly shortName: string;
-  readonly role: TroopRole;
-  readonly attack: number;
-  readonly defense: number;
-  /** Множитель скорости отряда в permille: 1000 — обычная. */
-  readonly speedPermille: number;
-  /** Дальность в «шагах» фазы: 0 — только ближний бой. */
-  readonly range: number;
-  readonly trainTicks: number;
-  readonly costSeeds: MilliUnits;
-  /** Против кого род войск сильнее (множитель из `combat.strongPermille`). */
-  readonly strongAgainst: readonly TroopKind[];
-  /** Против кого род войск слабее (множитель из `combat.weakPermille`). */
-  readonly weakAgainst: readonly TroopKind[];
-}
-
-/** Настройки фазового боя. */
-export interface CombatStats {
-  readonly strongPermille: number;
-  readonly weakPermille: number;
-  /** Максимальная доля потерь стороны за одну фазу, permille. */
-  readonly phaseLossPermille: number;
-  readonly rangedEfficiencyPermille: number;
-  readonly approachEfficiencyPermille: number;
-  readonly meleeEfficiencyPermille: number;
-}
-
-export interface ClanStats {
-  readonly name: string;
-  readonly productionPermille: number;
-  readonly defensePermille: number;
-  readonly speedPermille: number;
-  readonly spellCostPermille: number;
-}
+export const UNIT_KINDS = ['swordsman', 'archer', 'cavalry', 'cannon'] as const;
+export type UnitKind = (typeof UNIT_KINDS)[number];
 
 export type PlayerId = number;
 export type PlanetId = number;
 export type FleetId = number;
 export type RouteId = number;
-
+export type BattleId = number;
+export type Tick = number;
 export type PlanetSize = 'S' | 'M' | 'L' | 'XL';
 
-/**
- * Виды бустов. Порядок массива — канонический: по нему строится хэш и сброс
- * таймеров, поэтому новые виды добавляются только в конец.
- */
-export const BOOST_KINDS = ['production', 'speed', 'defense'] as const;
+export type Plan = Record<UnitKind, number>;
 
-export type BoostKind = (typeof BOOST_KINDS)[number];
-
-/** Тик, начиная с которого буст больше не действует (0 — не действовал). */
-export type Tick = number;
-
-/** Заказ на обучение в очереди планеты. */
-export interface TrainingOrder {
-  readonly kind: TroopKind;
-  /** Сколько ещё милли-единиц нужно обучить. */
-  remaining: MilliUnits;
-  /** Накопленные тики текущего хомяка. */
-  progressTicks: number;
+/** Один боец. `id` постоянный: по нему детерминированно выбирается цель. */
+export interface Unit {
+  readonly id: number;
+  readonly kind: UnitKind;
+  hp: number;
+  /** Когда юнит полностью восстановится, если не в бою; 0 — уже целый. */
+  healAtTick: Tick;
+  /** Когда ударит в следующий раз в текущем бою; 0 — вне боя. */
+  nextAttackTick: Tick;
 }
+
+export type Army = Unit[];
 
 export interface Planet {
   readonly id: PlanetId;
   readonly size: PlanetSize;
   readonly x: number;
   readonly y: number;
-  /** Базовая защита в permille: 1000 = 1.0. */
-  readonly defensePermille: number;
   ownerId: PlayerId;
-  /** Состав гарнизона по родам войск. */
-  troops: TroopStack;
-  /** Очередь обучения: первый заказ тренируется, остальные ждут. */
-  training: TrainingOrder[];
-  /** До какого тика действует каждый буст. Новый вид — новая запись. */
-  boosts: Record<BoostKind, Tick>;
+  /** Фактический гарнизон. */
+  army: Army;
+  /** План гарнизона: сколько каждого рода нужно. */
+  plan: Plan;
+  /** Накопленная работа производства по родам. */
+  production: Plan;
+  /** Активный бой на планете, если есть. */
+  battleId: BattleId | null;
 }
 
 export interface Fleet {
@@ -100,115 +54,114 @@ export interface Fleet {
   readonly ownerId: PlayerId;
   readonly fromPlanetId: PlanetId;
   readonly toPlanetId: PlanetId;
-  readonly troops: TroopStack;
+  readonly army: Army;
   readonly departTick: Tick;
   readonly arriveTick: Tick;
+  /** Доля пути, с которой начался полёт (после полевого боя). */
+  readonly startProgressPermille: number;
 }
 
-/**
- * Постоянный маршрут переброски: стрелка, которая живёт, пока её не отрежут.
- * `weightPermille` — выбранная доля (250…1000), `pending` — накопленный состав,
- * ещё не превратившийся в отряд (минимум — `minRouteFleet` суммарно).
- */
 export interface Route {
   readonly id: RouteId;
   readonly ownerId: PlayerId;
   readonly fromPlanetId: PlanetId;
   readonly toPlanetId: PlanetId;
+  /** Вес деления снабжения, обычно 1000. */
   weightPermille: number;
-  pending: TroopStack;
+  supplyEnabled: boolean;
+  /** Рода, которые разрешено отправлять; пусто — никакие. */
+  supplyKinds: UnitKind[];
+}
+
+/** Информация для продолжения полёта после полевого боя. */
+export interface FieldRoute {
+  readonly fromPlanetId: PlanetId;
+  readonly toPlanetId: PlanetId;
+  readonly progressPermille: number;
+}
+
+export interface Battle {
+  readonly id: BattleId;
+  readonly kind: 'planet' | 'field';
+  /** Планета, за которую идёт бой; null для полевого. */
+  readonly planetId: PlanetId | null;
+  readonly attackerOwnerId: PlayerId;
+  readonly defenderOwnerId: PlayerId;
+  attacker: Army;
+  defender: Army;
+  round: number;
+  /** Тик, на котором случится следующий раунд. */
+  nextRoundTick: Tick;
+  /** Куда продолжить путь победителю; null у планетарного боя. */
+  readonly attackerRoute: FieldRoute | null;
+  readonly defenderRoute: FieldRoute | null;
 }
 
 export interface PlayerState {
   readonly id: PlayerId;
-  /** Клан игрока. Назначается до старта (место за столом или выбор в меню). */
-  clanId: ClanId;
-  seeds: MilliUnits;
   alive: boolean;
-  /** До какого тика буст недоступен (перезарядка). */
-  boostCooldownUntilTick: Record<BoostKind, Tick>;
 }
 
-/** Событие перехвата: два встречных флота исчезли в точке встречи. */
-export interface InterceptionEvent {
-  readonly kind: 'interception';
-  readonly tick: Tick;
-  readonly fromPlanetId: PlanetId;
-  readonly toPlanetId: PlanetId;
-  /** Где по отрезку from→to встретились, в permille (500 = середина). */
-  readonly progressPermille: number;
-  readonly fleetIds: readonly [FleetId, FleetId];
+export interface UnitStats {
+  readonly name: string;
+  readonly shortName: string;
+  readonly role: 'melee' | 'ranged';
+  readonly hp: number;
+  readonly damage: number;
+  readonly attackIntervalTicks: number;
+  readonly firstAttackTicks: number;
+  /** Работа на одного юнита. */
+  readonly work: number;
+  /** Порядок целей. */
+  readonly priority: readonly UnitKind[];
+  /** Контр-множитель урона против рода, permille. */
+  readonly counters: Partial<Record<UnitKind, number>>;
 }
 
-/** События тика — только для вида и звука; в хэш не входят. */
-export type GameEvent = InterceptionEvent;
-
-export interface GameState {
-  tick: Tick;
-  readonly seed: number;
-  readonly rulesVersion: number;
-  readonly planets: Planet[];
-  readonly fleets: Fleet[];
-  readonly routes: Route[];
-  readonly players: PlayerState[];
-  /** Живут один тик: очищаются в начале шага. */
-  readonly events: GameEvent[];
-  nextFleetId: FleetId;
-  nextRouteId: RouteId;
+export interface Template {
+  readonly id: string;
+  readonly name: string;
+  readonly percents: Plan;
 }
 
 export interface SizeStats {
-  /** Вместимость в milli-единицах. */
-  readonly capacity: MilliUnits;
-  /** Производство в milli-единицах за секунду. */
-  readonly productionPerSecond: MilliUnits;
+  readonly capacity: number;
+  readonly powerPerTick: number;
 }
 
-export interface BoostStats {
-  /** Стоимость в milli-семечках. */
-  readonly cost: MilliUnits;
-  readonly durationTicks: number;
-  readonly cooldownTicks: number;
-  /** Множитель в permille: 2000 = ×2. */
-  readonly factorPermille: number;
+export interface SupplyStats {
+  readonly reservePermille: number;
+  readonly intervalTicks: number;
+}
+
+export interface DefenseStats {
+  readonly damagePermille: number;
 }
 
 export interface Balance {
   readonly rulesVersion: number;
-  /** Версия набора данных: меняется при правке баланса или карт. */
   readonly contentVersion: number;
   readonly planetSizes: Readonly<Record<PlanetSize, SizeStats>>;
-  /** Скорость флотов в целых единицах карты за секунду. */
   readonly flightSpeedUnitsPerSecond: number;
-  /** Приток семечек с одной своей планеты за секунду. */
-  readonly seedsPerPlanetPerSecond: MilliUnits;
-  readonly startingSeeds: MilliUnits;
-  readonly boosts: Readonly<Record<BoostKind, BoostStats>>;
-  /** Минимальный гарнизон после захвата. */
-  readonly minCaptureGarrison: MilliUnits;
-  /** Сколько постоянных маршрутов можно держать с одной планеты. */
   readonly maxRoutesPerPlanet: number;
-  /** Минимальный накопленный отряд маршрута, после которого он вылетает. */
-  readonly minRouteFleet: MilliUnits;
-  /** Характеристики родов войск. */
-  readonly troops: Readonly<Record<TroopKind, TroopStats>>;
-  /** Бонусы кланов. */
-  readonly clans: Readonly<Record<ClanId, ClanStats>>;
-  /** Сколько заказов обучения можно держать в очереди одной планеты. */
-  readonly maxTrainingQueue: number;
-  /** Настройки фазового боя. */
-  readonly combat: CombatStats;
+  readonly supply: SupplyStats;
+  readonly defense: DefenseStats;
+  readonly capturePercents: Plan;
+  readonly startingArmy: Plan;
+  readonly startingPlan: Plan;
+  readonly neutralGarrison: Readonly<Record<PlanetSize, number>>;
+  readonly troops: Readonly<Record<UnitKind, UnitStats>>;
+  readonly templates: readonly Template[];
 }
 
-/** Планета в описании карты: данные, а не состояние. */
 export interface MapPlanet {
   readonly id: PlanetId;
   readonly size: PlanetSize;
   readonly x: number;
   readonly y: number;
   readonly ownerId: PlayerId;
-  readonly garrisonHamsters: number;
-  readonly defensePermille?: number | undefined;
+  readonly garrison: Plan;
+  readonly plan?: Plan | undefined;
 }
 
 export interface MapDefinition {
@@ -228,49 +181,92 @@ export type Command =
       readonly fromPlanetIds: readonly PlanetId[];
       readonly toPlanetId: PlanetId;
       readonly ratio: Ratio;
-      /**
-       * Желаемый состав отряда: веса родов. Если не задан — отряд забирается
-       * пропорционально составу планеты (текущее поведение).
-       */
-      readonly composition?: Partial<Record<TroopKind, number>>;
+      /** Если задан — доля считается только от этого рода. */
+      readonly kind?: UnitKind;
     }
   | {
-      readonly type: 'ApplyBoost';
+      readonly type: 'SetPlan';
       readonly playerId: PlayerId;
       readonly planetId: PlanetId;
-      readonly boost: BoostKind;
+      readonly plan: Partial<Plan>;
+    }
+  | {
+      readonly type: 'ResetPlan';
+      readonly playerId: PlayerId;
+      readonly planetId: PlanetId;
+    }
+  | {
+      readonly type: 'ApplyTemplate';
+      readonly playerId: PlayerId;
+      readonly planetId: PlanetId;
+      readonly templateId: string;
+    }
+  | {
+      readonly type: 'EnableSupply';
+      readonly playerId: PlayerId;
+      readonly routeId: RouteId;
+      readonly enabled: boolean;
+      readonly kinds?: readonly UnitKind[];
     }
   | {
       readonly type: 'RemoveRoute';
       readonly playerId: PlayerId;
       readonly routeId: RouteId;
-    }
-  | {
-      readonly type: 'TrainTroops';
-      readonly playerId: PlayerId;
-      readonly planetId: PlanetId;
-      readonly kind: TroopKind;
-      /** Сколько хомяков обучить (целое число, минимум 1). */
-      readonly amount: number;
     };
 
 export type CommandErrorCode =
   | 'player-dead'
   | 'unknown-planet'
   | 'not-your-planet'
-  | 'wrong-boost-target'
   | 'same-planet'
   | 'no-troops'
   | 'invalid-ratio'
-  | 'not-enough-seeds'
-  | 'cooldown'
+  | 'invalid-plan'
+  | 'in-battle'
   | 'too-many-routes'
   | 'unknown-route'
   | 'not-your-route'
-  | 'invalid-amount'
-  | 'queue-full'
-  | 'unknown-troop';
+  | 'unknown-template'
+  | 'unknown-kind';
 
 export type CommandResult =
   | { readonly ok: true; readonly fleetIds?: readonly FleetId[] }
   | { readonly ok: false; readonly error: CommandErrorCode };
+
+/** Событие для вида: не входит в хэш и не влияет на исход. */
+export interface InterceptionEvent {
+  readonly kind: 'interception';
+  readonly tick: Tick;
+  readonly fromPlanetId: PlanetId;
+  readonly toPlanetId: PlanetId;
+  readonly progressPermille: number;
+  readonly fleetIds: readonly [FleetId, FleetId];
+}
+
+export interface BattleEvent {
+  readonly kind: 'battle-start' | 'battle-end';
+  readonly tick: Tick;
+  readonly battleId: BattleId;
+  readonly planetId: PlanetId | null;
+  readonly attackerOwnerId: PlayerId;
+  readonly defenderOwnerId: PlayerId;
+  readonly captured?: boolean;
+}
+
+export type GameEvent = InterceptionEvent | BattleEvent;
+
+export interface GameState {
+  tick: Tick;
+  readonly seed: number;
+  readonly rulesVersion: number;
+  readonly planets: Planet[];
+  readonly fleets: Fleet[];
+  readonly routes: Route[];
+  readonly battles: Battle[];
+  readonly players: PlayerState[];
+  readonly events: GameEvent[];
+  nextUnitId: number;
+  nextFleetId: FleetId;
+  nextRouteId: RouteId;
+  nextBattleId: BattleId;
+}

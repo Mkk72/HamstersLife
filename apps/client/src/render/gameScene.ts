@@ -4,7 +4,7 @@
  * масштабе карты. Слои (фон, планеты, флоты, эффекты) — отдельные классы.
  */
 import type { MapDefinition } from '@hamsters/core';
-import type { BoostKind, PlanetId } from '@hamsters/core';
+import type { PlanetId } from '@hamsters/core';
 import { Application, Container } from 'pixi.js';
 import { Sfx } from '../audio/sfx';
 import type { BoardView, GameView, QualityLevel } from '../presenter/viewModel';
@@ -140,11 +140,6 @@ export class GameScene implements GameView {
     this.#shakeUntil = Math.max(this.#shakeUntil, this.app.ticker.lastTime + 160);
   }
 
-  playBoost(planetId: PlanetId, _kind: BoostKind): void {
-    this.#pulses.push({ planetId, until: this.app.ticker.lastTime + 160 });
-    this.#sfx.boost();
-  }
-
   playSend(): void {
     this.#sfx.send();
   }
@@ -166,9 +161,11 @@ export class GameScene implements GameView {
     this.#sfx.cut();
   }
 
-  playTrain(): void {
-    this.#sfx.train();
+  toScreen(x: number, y: number): { x: number; y: number } {
+    const point = this.world.toGlobal({ x, y });
+    return { x: point.x, y: point.y };
   }
+
   /** Планета под экранной точкой — для ввода. */
   hitTest(screenX: number, screenY: number): PlanetId | null {
     const point = this.world.toLocal({ x: screenX, y: screenY });

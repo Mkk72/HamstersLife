@@ -32,7 +32,7 @@ export class WheelInput {
 
   #onWheel = (event: WheelEvent): void => {
     const presenter = this.#presenter();
-    if (!presenter || presenter.selectedIds.length === 0) return;
+    if (!presenter || presenter.selectedId === null) return;
     event.preventDefault();
 
     const index = RATIOS.indexOf(presenter.ratio);

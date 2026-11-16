@@ -1,12 +1,9 @@
 /**
- * Запуск флота между планетами — общий помощник для команд и постоянных
- * маршрутов: одна формула времени полёта, один счётчик id. Отряд несёт состав,
- * а не одно число.
+ * Запуск флота: одна скорость для всех капсул, один счётчик id.
+ * `startProgressPermille` позволяет продолжить путь после полевого боя.
  */
 import { distance, flightTicks } from './flight';
-import { speedUnitsPerSecond } from './modifiers';
-import { troopTotal } from './troops';
-import type { Balance, Fleet, GameState, Planet, TroopStack } from './types';
+import type { Army, Balance, Fleet, GameState, Planet } from './types';
 
 export function launchFleet(
   state: GameState,
@@ -14,23 +11,27 @@ export function launchFleet(
   ownerId: number,
   from: Planet,
   toPlanetId: number,
-  troops: TroopStack,
+  army: Army,
+  startProgressPermille = 0,
 ): Fleet | null {
   const target = state.planets[toPlanetId];
-  if (!target || troopTotal(troops) <= 0) return null;
-
-  const owner = state.players[ownerId];
-  const clanSpeed = owner ? (balance.clans[owner.clanId]?.speedPermille ?? 1000) : 1000;
-  const speed = speedUnitsPerSecond(from, state.tick, balance, clanSpeed);
-  const ticks = flightTicks(distance(from.x, from.y, target.x, target.y), speed);
+  if (!target || army.length === 0) return null;
+  const progress = Math.min(1000, Math.max(0, startProgressPermille));
+  const fullDistance = distance(from.x, from.y, target.x, target.y);
+  const remaining = Math.max(0, fullDistance - Math.floor((fullDistance * progress) / 1000));
+  const ticks = Math.max(
+    1,
+    flightTicks(remaining, balance.flightSpeedUnitsPerSecond),
+  );
   const fleet: Fleet = {
     id: state.nextFleetId,
     ownerId,
     fromPlanetId: from.id,
     toPlanetId: target.id,
-    troops,
+    army,
     departTick: state.tick,
     arriveTick: state.tick + ticks,
+    startProgressPermille: progress,
   };
   state.nextFleetId += 1;
   state.fleets.push(fleet);

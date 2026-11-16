@@ -5,7 +5,6 @@ import type { BotDifficulty } from '@hamsters/ai';
 const MAP_OPTIONS: readonly { value: string; label: string; hint: string }[] = [
   { value: 'arena-duel', label: 'Арена', hint: 'ручная карта, 13 планет' },
   { value: 'random', label: 'Случайная', hint: 'симметричная, по seed' },
-  { value: 'three', label: '1×3', hint: 'четыре игрока, все против всех' },
 ];
 
 const DIFFICULTIES: readonly BotDifficulty[] = ['easy', 'normal', 'hard'];
@@ -26,8 +25,8 @@ export function MainMenu(props: MainMenuProps) {
         <div class="menu__badge">этап 1 · «Захват» против бота</div>
         <h1 class="menu__title">Hamsters Life</h1>
         <p class="menu__tagline">
-          Хомяки расселились по галактике. Тяни стрелку от своей планеты к чужой —
-          прилетело больше, чем защищает, планета твоя.
+          Хомяки расселились по галактике. Собери план гарнизона, отправь отряд стрелкой
+          и удержи снабжение — планета твоя, если в бою уцелел атакующий.
         </p>
 
         <div class="menu__maps" role="group" aria-label="Карта">
@@ -67,16 +66,12 @@ export function MainMenu(props: MainMenuProps) {
         </button>
 
         <ul class="menu__controls">
-          <li>Перетащи стрелку от своей планеты к цели — маршрут останется и будет течь</li>
+          <li>Клик по своей планете — панель плана гарнизона рядом с планетой</li>
+          <li>Протяни стрелку к цели и отпусти — уйдёт разовый отряд</li>
           <li>
             Доля отправки — <kbd>1</kbd>–<kbd>4</kbd> или колесо
           </li>
-          <li>
-            Бусты — <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> или панель снизу
-          </li>
-          <li>
-            <kbd>Shift</kbd> — добавить планету к выбору
-          </li>
+          <li>Снабжение включается на маршруте в панели планеты</li>
           <li>
             Пауза — <kbd>Space</kbd>, скорость — <kbd>[</kbd> и <kbd>]</kbd>
           </li>

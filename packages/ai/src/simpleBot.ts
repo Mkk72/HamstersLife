@@ -1,74 +1,72 @@
 /**
- * Бот «Боец» — первый уровень сложности.
- *
- * Работает на тех же правилах, что игрок: видит только состояние и отдаёт
- * команды. Никакого чтения скрытых данных. Решения принимаются не каждый тик,
- * а раз в `decideEveryTicks`, иначе бот превращается в шум для сервера.
- *
- * Характер: осторожный. Оставляет резерв (не отправляет планету с малым
- * гарнизоном), бьёт только при перевесе, раз в перезарядку ставит «Колесо».
+ * Бот первого этапа: играет теми же командами и экономикой, что человек.
+ * План гарнизона, разовые атаки, включение снабжения — без семечек и бустов.
  */
-import {
-  defenseForce,
-  defensePermille,
-  distance,
-  garrisonOf,
-  type Balance,
-  type Bot,
-  type ClanId,
-  type Command,
-  type GameState,
-  type MilliUnits,
-  type Planet,
-  type PlayerId,
-  type Ratio,
-  type TroopKind,
+import type {
+  Army,
+  Balance,
+  Bot,
+  Command,
+  GameState,
+  Planet,
+  PlayerId,
+  Ratio,
+  UnitKind,
 } from '@hamsters/core';
+import { countsOf, planSum } from '@hamsters/core';
 
 export interface SimpleBotOptions {
-  /** Как часто принимать решения, в тиках. По умолчанию раз в 10 (0.5 с). */
   readonly decideEveryTicks?: number;
-  /** Ниже какого гарнизона планета не атакует (резерв). */
-  readonly minAttackGarrison?: MilliUnits;
-  /** Насколько attacker должен превышать защиту. 1.15 = +15% запаса. */
+  /** Насколько своя сила должна превышать защиту цели. */
   readonly attackMargin?: number;
   readonly attackRatio?: Ratio;
-  readonly useBoosts?: boolean;
-  /** Тренировать ли войска в казармах. */
-  readonly useTraining?: boolean;
-  /** Атаковать ли чужие планеты игроков (иначе только нейтралов). */
+  readonly useSupply?: boolean;
+  /** Атаковать ли игрока; иначе только нейтралов. */
   readonly targetPlayers?: boolean;
+  /** Шаблон плана для новых планет. */
+  readonly templateId?: string;
+  /** Менять шаблон под состав врага (сильный бот). */
+  readonly adaptTemplate?: boolean;
 }
 
-const DEFAULT_OPTIONS = {
+const DEFAULTS = {
   decideEveryTicks: 10,
-  minAttackGarrison: 5000,
-  attackMargin: 1.15,
+  attackMargin: 1.25,
   attackRatio: 75 as Ratio,
-  useBoosts: true,
-  useTraining: true,
+  useSupply: true,
   targetPlayers: true,
+  templateId: 'balanced',
+  adaptTemplate: false,
 } satisfies Required<SimpleBotOptions>;
 
 const SIZE_VALUE: Readonly<Record<Planet['size'], number>> = { S: 1, M: 2, L: 3, XL: 4 };
 
-/** Клан задаёт, кого бот тренирует: так кланы проверяются симулятором. */
-const TRAINED_BY_CLAN: Readonly<Record<ClanId, TroopKind>> = {
-  goldenCheeks: 'swordsman',
-  jungarian: 'cavalry',
-  syrian: 'archer',
-  darkRoborowski: 'mage',
-};
+/** Грубая сила армии: запас HP × урон в секунду. */
+function armyPower(army: readonly Army[number][], balance: Balance): number {
+  let hp = 0;
+  let damage = 0;
+  for (const unit of army) {
+    const stats = balance.troops[unit.kind];
+    hp += Math.max(0, unit.hp);
+    damage += (stats.damage * 20) / stats.attackIntervalTicks;
+  }
+  return Math.max(1, hp + damage * 4);
+}
+
+function countsOfArmy(army: readonly Army[number][]): Record<UnitKind, number> {
+  return countsOf(army);
+}
 
 export class SimpleBot implements Bot {
   readonly name = 'Боец';
   readonly #balance: Balance;
   readonly #options: Required<SimpleBotOptions>;
   #lastDecisionTick = Number.NEGATIVE_INFINITY;
+  #lastTemplate = '';
 
   constructor(balance: Balance, options: SimpleBotOptions = {}) {
     this.#balance = balance;
-    this.#options = { ...DEFAULT_OPTIONS, ...options };
+    this.#options = { ...DEFAULTS, ...options };
   }
 
   decide(state: Readonly<GameState>, playerId: PlayerId): readonly Command[] {
@@ -78,124 +76,110 @@ export class SimpleBot implements Bot {
     this.#lastDecisionTick = state.tick;
 
     const commands: Command[] = [];
-    const cleanup = this.#decideCleanup(state, playerId);
-    if (cleanup) commands.push(cleanup);
-    const training = this.#decideTraining(state, playerId);
-    if (training) commands.push(training);
-    const boost = this.#decideBoost(state, playerId);
-    if (boost) commands.push(boost);
+    commands.push(...this.#decidePlans(state, playerId));
+    const supply = this.#decideSupply(state, playerId);
+    if (supply) commands.push(supply);
     const attack = this.#decideAttack(state, playerId);
     if (attack) commands.push(attack);
     return commands;
   }
 
-  /**
-   * Обучает пару мечников, если очередь свободна и после этого остаётся на
-   * «Колесо»: бот не должен съедать семечки, оставляя себя без бустов.
-   */
-  #decideTraining(state: Readonly<GameState>, playerId: PlayerId): Command | null {
-    if (!this.#options.useTraining) return null;
-    const player = state.players[playerId];
-    if (!player) return null;
-    const own = state.planets.filter(
-      (planet) => planet.ownerId === playerId && planet.training.length === 0,
+  #templateFor(state: Readonly<GameState>, playerId: PlayerId): string {
+    if (!this.#options.adaptTemplate) return this.#options.templateId;
+    const enemyUnits: Record<UnitKind, number> = {
+      swordsman: 0,
+      archer: 0,
+      cavalry: 0,
+      cannon: 0,
+    };
+    for (const planet of state.planets) {
+      if (planet.ownerId === playerId || planet.ownerId === -1) continue;
+      const counts = countsOfArmy(planet.army);
+      for (const kind of Object.keys(enemyUnits) as UnitKind[]) enemyUnits[kind] += counts[kind];
+    }
+    const dominant = (Object.keys(enemyUnits) as UnitKind[]).reduce((best, kind) =>
+      enemyUnits[kind] > enemyUnits[best] ? kind : best,
     );
-    const planet = own[0];
-    if (!planet) return null;
-
-    const kind = TRAINED_BY_CLAN[player.clanId] ?? 'swordsman';
-    const stats = this.#balance.troops[kind];
-    // Дорогие рода учим по одному, дешёвые — по два.
-    const amount = stats.costSeeds <= 22_000 ? 2 : 1;
-    const cost = amount * stats.costSeeds;
-    if (player.seeds < cost + this.#balance.boosts.production.cost) return null;
-
-    return { type: 'TrainTroops', playerId, planetId: planet.id, kind, amount };
+    if (dominant === 'swordsman') return 'siege';
+    if (dominant === 'cavalry') return 'swords-archers';
+    if (dominant === 'cannon') return 'raid';
+    return 'balanced';
   }
 
-  /** Маршрут, который кормит уже свою планету, только мешает — отрезаем. */
-  #decideCleanup(state: Readonly<GameState>, playerId: PlayerId): Command | null {
+  /** Раздать план всем своим планетам, если план ещё пуст. */
+  #decidePlans(state: Readonly<GameState>, playerId: PlayerId): Command[] {
+    const templateId = this.#templateFor(state, playerId);
+    if (templateId === this.#lastTemplate) {
+      return [];
+    }
+    const planets = state.planets.filter(
+      (planet) => planet.ownerId === playerId && planSum(planet.plan) === 0,
+    );
+    if (planets.length === 0) return [];
+    this.#lastTemplate = templateId;
+    return planets.map((planet) => ({
+      type: 'ApplyTemplate' as const,
+      playerId,
+      planetId: planet.id,
+      templateId,
+    }));
+  }
+
+  /** Включить снабжение на первом выгодном маршруте. */
+  #decideSupply(state: Readonly<GameState>, playerId: PlayerId): Command | null {
+    if (!this.#options.useSupply) return null;
     const route = state.routes.find(
       (candidate) =>
         candidate.ownerId === playerId &&
-        state.planets[candidate.toPlanetId]?.ownerId === playerId,
+        !candidate.supplyEnabled &&
+        state.planets[candidate.fromPlanetId]?.ownerId === playerId,
     );
     if (!route) return null;
-    return { type: 'RemoveRoute', playerId, routeId: route.id };
-  }
-
-  #decideBoost(state: Readonly<GameState>, playerId: PlayerId): Command | null {
-    if (!this.#options.useBoosts) return null;
-    const player = state.players[playerId];
-    if (!player) return null;
-    const stats = this.#balance.boosts.production;
-    if (player.seeds < stats.cost) return null;
-    if (player.boostCooldownUntilTick.production > state.tick) return null;
-
-    const own = state.planets.filter((planet) => planet.ownerId === playerId);
-    const best = own.reduce<Planet | null>((current, planet) => {
-      if (!current) return planet;
-      return SIZE_VALUE[planet.size] > SIZE_VALUE[current.size] ? planet : current;
-    }, null);
-    if (!best) return null;
-    if (planetHasBoost(best, 'production', state.tick)) return null;
-
-    return { type: 'ApplyBoost', playerId, planetId: best.id, boost: 'production' };
+    return {
+      type: 'EnableSupply',
+      playerId,
+      routeId: route.id,
+      enabled: true,
+    };
   }
 
   #decideAttack(state: Readonly<GameState>, playerId: PlayerId): Command | null {
-    const own = state.planets
-      .filter((planet) => planet.ownerId === playerId)
-      .filter((planet) => garrisonOf(planet) >= this.#options.minAttackGarrison);
+    const own = state.planets.filter(
+      (planet) => planet.ownerId === playerId && planet.battleId === null,
+    );
     if (own.length === 0) return null;
 
-    const allTargets = state.planets.filter((planet) => planet.ownerId !== playerId);
+    const allTargets = state.planets.filter(
+      (planet) => planet.ownerId !== playerId && planet.battleId === null,
+    );
     const targets = this.#options.targetPlayers
       ? allTargets
       : allTargets.filter((planet) => planet.ownerId === -1);
-    // Если нейтралов не осталось, даже осторожный бот идёт на игрока.
-    const candidatesSource = targets.length > 0 ? targets : allTargets;
+    const source = targets.length > 0 ? targets : allTargets;
 
-    const candidates = candidatesSource
-      .filter((planet) => planet.ownerId !== playerId)
-      .filter((planet) => planet.ownerId !== playerId)
+    const candidates = source
       .map((target) => {
-        const defender = state.players[target.ownerId];
-        const clanDefense = defender
-          ? (this.#balance.clans[defender.clanId]?.defensePermille ?? 1000)
-          : 1000;
-        const force = defenseForce(
-          garrisonOf(target),
-          defensePermille(target, state.tick, this.#balance, clanDefense),
-        );
-        const value = SIZE_VALUE[target.size] * (target.ownerId === -1 ? 1.2 : 1.5);
-        return { target, force, value };
+        const defense = armyPower(target.army, this.#balance);
+        const value = SIZE_VALUE[target.size] * (target.ownerId === -1 ? 1.1 : 1.3);
+        return { target, defense, value };
       })
-      .sort((a, b) => b.value - a.value);
+      .sort((a, b) => b.value / b.defense - a.value / a.defense);
 
     for (const candidate of candidates) {
-      const need = candidate.force * this.#options.attackMargin;
-      const sources: Planet[] = [];
-      let troops = 0;
-
+      const need = candidate.defense * this.#options.attackMargin;
       const byDistance = [...own].sort(
         (a, b) =>
-          distance(a.x, a.y, candidate.target.x, candidate.target.y) -
-          distance(b.x, b.y, candidate.target.x, candidate.target.y),
+          Math.hypot(a.x - candidate.target.x, a.y - candidate.target.y) -
+          Math.hypot(b.x - candidate.target.x, b.y - candidate.target.y),
       );
-
-      for (const source of byDistance) {
-        if (troops > need) break;
-        sources.push(source);
-        troops += Math.floor((garrisonOf(source) * this.#options.attackRatio) / 100);
-      }
-
-      if (troops <= need || sources.length === 0) continue;
-
+      const sourcePlanet = byDistance[0];
+      if (!sourcePlanet) continue;
+      const available = armyPower(sourcePlanet.army, this.#balance) * (this.#options.attackRatio / 100);
+      if (available < need) continue;
       return {
         type: 'SendFleet',
         playerId,
-        fromPlanetIds: sources.map((source) => source.id),
+        fromPlanetIds: [sourcePlanet.id],
         toPlanetId: candidate.target.id,
         ratio: this.#options.attackRatio,
       };
@@ -203,8 +187,4 @@ export class SimpleBot implements Bot {
 
     return null;
   }
-}
-
-function planetHasBoost(planet: Planet, kind: 'production' | 'speed' | 'defense', tick: number): boolean {
-  return (planet.boosts[kind] ?? 0) > tick;
 }

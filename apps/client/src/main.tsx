@@ -1,8 +1,8 @@
 import { CONTENT, getMap } from '@hamsters/content';
 import { BOT_PRESETS, DEFAULT_DIFFICULTY, SimpleBot } from '@hamsters/ai';
 import type { BotDifficulty } from '@hamsters/ai';
-import { Simulation, createTroopStack } from '@hamsters/core';
-import type { BoostKind, MapDefinition, Ratio, TroopKind } from '@hamsters/core';
+import { Simulation, addUnits, planFrom } from '@hamsters/core';
+import type { MapDefinition, Ratio, UnitKind } from '@hamsters/core';
 import { generateDuelMap } from '@hamsters/levelgen';
 import { Application } from 'pixi.js';
 import { createSignal } from 'solid-js';
@@ -12,7 +12,7 @@ import { KeyboardInput } from './input/keyboardInput';
 import { PointerInput } from './input/pointerInput';
 import { WheelInput } from './input/wheelInput';
 import { GamePresenter } from './presenter/gamePresenter';
-import type { BoardView, CompositionMode, QualityLevel } from './presenter/viewModel';
+import type { BoardView, QualityLevel } from './presenter/viewModel';
 import { GameScene } from './render/gameScene';
 import { THEME } from './render/theme';
 import { MatchRecorder } from './replay/matchRecorder';
@@ -31,8 +31,6 @@ const app = new Application();
 await app.init({
   background: THEME.space,
   resizeTo: window,
-  // WebGL стабильнее WebGPU на слабых и мобильных GPU, а разрешение выше
-  // 1.5× не даёт заметной картинки, но стоит кадров.
   preference: 'webgl',
   antialias: false,
   resolution: Math.min(window.devicePixelRatio || 1, 1.5),
@@ -44,7 +42,6 @@ host.appendChild(app.canvas);
 
 const params = new URLSearchParams(window.location.search);
 
-/** На телефонах и слабых экранах сразу среднее качество — меньше объектов. */
 const initialQuality: QualityLevel =
   window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 900 ? 'medium' : 'high';
 
@@ -61,8 +58,6 @@ const scene = new GameScene(app, getMap(CONTENT.defaultMapName), {
   onBoard: (view) => setBoard(view),
 });
 
-// Флаги для проверок: ?worker=1 — считать в Worker, ?stress=1 — карта на 40 планет
-// и 300 флотов в полёте (дымовая проверка бюджета кадра).
 const useWorker = params.has('worker');
 const stressMode = params.has('stress');
 
@@ -71,27 +66,29 @@ let bots: BotRunner[] = [];
 let recorder: MatchRecorder | null = null;
 let matchCounter = 0;
 
-function mapFor(choice: string, seed: number): MapDefinition {  if (choice === 'three') return generateDuelMap(seed, { playerCount: 4 });
+function mapFor(choice: string, seed: number): MapDefinition {
   if (stressMode) return generateDuelMap(seed, { neutralPairs: 18 });
   return choice === 'random' ? generateDuelMap(seed) : getMap(CONTENT.defaultMapName);
 }
 
-/** Нагрузочный режим: 300 флотов в полёте, чтобы проверить отрисовку глазами. */
+/** Нагрузочный режим: 300 флотов, чтобы проверить отрисовку глазами. */
 function injectStressFleets(sim: Simulation): void {
   const planets = sim.state.planets;
-  if (planets.length === 0) return;
   for (let index = 0; index < 300; index += 1) {
     const from = planets[index % planets.length];
     const to = planets[(index * 7 + 3) % planets.length];
-    if (!from || !to) continue;
+    if (!from || !to || from.id === to.id) continue;
+    const army: Simulation['state']['fleets'][number]['army'] = [];
+    addUnits(army, planFrom({ swordsman: 4 }), () => sim.state.nextUnitId++, CONTENT.balance.troops);
     sim.state.fleets.push({
       id: 100_000 + index,
       ownerId: index % 2,
       fromPlanetId: from.id,
       toPlanetId: to.id,
-      troops: createTroopStack({ swordsman: 500 }),
+      army,
       departTick: 0,
       arriveTick: 1_000_000,
+      startProgressPermille: 0,
     });
   }
 }
@@ -160,7 +157,6 @@ function downloadReplay(): void {
 
 let lastSpeed = 1;
 
-/** Скорость применяется ко всем участникам: мир, игрок и боты. */
 function applySpeed(value: number): void {
   if (value > 0) lastSpeed = value;
   setSpeed(value);
@@ -175,18 +171,23 @@ function togglePause(): void {
 const pointer = new PointerInput(app.canvas, scene, () => presenter);
 pointer.attach();
 
-// Браузер разрешает звук только после действия пользователя.
 window.addEventListener('pointerdown', () => scene.unlockAudio(), { once: true });
 
 const keyboard = new KeyboardInput({
   presenter: () => presenter,
-  onRatio: (value) => setRatio(value),
+  onRatio: (value) => {
+    setRatio(value);
+    presenter?.setRatio(value);
+  },
   onSpeed: applySpeed,
   onTogglePause: togglePause,
 });
 keyboard.attach();
 
-const wheel = new WheelInput(app.canvas, () => presenter, (value) => setRatio(value));
+const wheel = new WheelInput(app.canvas, () => presenter, (value) => {
+  setRatio(value);
+  presenter?.setRatio(value);
+});
 wheel.attach();
 
 render(
@@ -205,16 +206,12 @@ render(
         setRatio(value);
         presenter?.setRatio(value);
       }}
-      onBoost={(kind: BoostKind) => presenter?.applyBoost(kind)}
-      onTrain={(kind: TroopKind) => presenter?.train(kind)}
-      onComposition={(id: string) => presenter?.setComposition(id as CompositionMode)}
       onQuality={(value) => {
         setQuality(value);
         presenter?.setQuality(value);
       }}
       onMap={(choice) => {
         setMapChoice(choice);
-        // В меню выбор только запоминается; в игре — начинается новый матч.
         if (started()) startMatch(choice);
       }}
       onDifficulty={(value) => setDifficulty(value)}
@@ -230,10 +227,19 @@ render(
       }}
       onRestart={() => startMatch()}
       onDownloadReplay={downloadReplay}
+      onPlanDelta={(kind: UnitKind, delta: number) => presenter?.changePlan(kind, delta)}
+      onPlanSet={(kind: UnitKind, value: number) => presenter?.setPlanValue(kind, value)}
+      onResetPlan={() => presenter?.resetPlan()}
+      onUndoReset={() => presenter?.undoReset()}
+      onTemplate={(templateId: string) => presenter?.applyTemplate(templateId)}
+      onToggleSupply={(routeId: number) => presenter?.toggleSupply(routeId)}
     />
   ),
   host,
 );
 
-// ?play=1 — сразу в бой: удобно для скриншотов и дымовых проверок.
-if (new URLSearchParams(window.location.search).has('play')) startMatch();
+if (params.has('play')) {
+  startMatch();
+  const select = params.get('select');
+  if (select !== null && presenter) (presenter as GamePresenter).pointerDown(Number(select));
+}

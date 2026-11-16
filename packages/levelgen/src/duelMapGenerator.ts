@@ -1,14 +1,10 @@
 /**
  * Генератор симметричных карт: дуэль 1×1 и «все против всех» 1×3.
- *
- * Зеркальная симметрия даёт равные расстояния и гарнизоны: честный старт без
- * проверочных симуляций (полная проверка баланса — этап 3 ROADMAP).
- * Одинаковый seed всегда даёт одинаковую карту: используется PRNG ядра.
+ * Стартовые планеты M: армия 18/6 и план 36/24. Нейтралы — только мечники.
  */
 import { createRng } from '@hamsters/core';
-import type { MapDefinition, MapPlanet, PlanetSize } from '@hamsters/core';
+import type { MapDefinition, MapPlanet, Plan, PlanetSize } from '@hamsters/core';
 
-/** Порт: генератор карт можно заменить (ручная, сгенерированная, из файла). */
 export interface MapGenerator {
   generate(seed: number): MapDefinition;
 }
@@ -16,13 +12,9 @@ export interface MapGenerator {
 export interface DuelMapOptions {
   readonly width?: number;
   readonly height?: number;
-  /** 2 — дуэль, 4 — «все против всех». */
   readonly playerCount?: 2 | 4;
-  /** Сколько пар (2 игрока) или четвёрок (4 игрока) нейтралов. */
   readonly neutralPairs?: number;
-  /** Минимальное расстояние между планетами в единицах карты. */
   readonly minDistance?: number;
-  /** Минимальное расстояние от стартовых планет. */
   readonly startClearance?: number;
 }
 
@@ -35,20 +27,69 @@ const DEFAULTS = {
   startClearance: 220,
 } satisfies Required<DuelMapOptions>;
 
-const NEUTRAL_SIZES: readonly PlanetSize[] = ['S', 'S', 'S', 'M'];
+function plan(partial: Partial<Plan>): Plan {
+  return { swordsman: 0, archer: 0, cavalry: 0, cannon: 0, ...partial };
+}
+const START_GARRISON = plan({ swordsman: 18, archer: 6 });
+const START_PLAN = plan({ swordsman: 36, archer: 24 });
+
+function neutralGarrison(size: PlanetSize): Plan {
+  const count = size === 'S' ? 6 : size === 'M' ? 10 : size === 'L' ? 16 : 24;
+  return plan({ swordsman: count });
+}
 
 function startsFor(playerCount: 2 | 4, width: number, height: number): MapPlanet[] {
   if (playerCount === 2) {
     return [
-      { id: 0, size: 'M', x: 150, y: height / 2, ownerId: 0, garrisonHamsters: 12 },
-      { id: 1, size: 'M', x: width - 150, y: height / 2, ownerId: 1, garrisonHamsters: 12 },
+      {
+        id: 0,
+        size: 'M',
+        x: 150,
+        y: height / 2,
+        ownerId: 0,
+        garrison: START_GARRISON,
+        plan: START_PLAN,
+      },
+      {
+        id: 1,
+        size: 'M',
+        x: width - 150,
+        y: height / 2,
+        ownerId: 1,
+        garrison: START_GARRISON,
+        plan: START_PLAN,
+      },
     ];
   }
   return [
-    { id: 0, size: 'M', x: 150, y: 170, ownerId: 0, garrisonHamsters: 12 },
-    { id: 1, size: 'M', x: width - 150, y: 170, ownerId: 1, garrisonHamsters: 12 },
-    { id: 2, size: 'M', x: 150, y: height - 170, ownerId: 2, garrisonHamsters: 12 },
-    { id: 3, size: 'M', x: width - 150, y: height - 170, ownerId: 3, garrisonHamsters: 12 },
+    { id: 0, size: 'M', x: 150, y: 170, ownerId: 0, garrison: START_GARRISON, plan: START_PLAN },
+    {
+      id: 1,
+      size: 'M',
+      x: width - 150,
+      y: 170,
+      ownerId: 1,
+      garrison: START_GARRISON,
+      plan: START_PLAN,
+    },
+    {
+      id: 2,
+      size: 'M',
+      x: 150,
+      y: height - 170,
+      ownerId: 2,
+      garrison: START_GARRISON,
+      plan: START_PLAN,
+    },
+    {
+      id: 3,
+      size: 'M',
+      x: width - 150,
+      y: height - 170,
+      ownerId: 3,
+      garrison: START_GARRISON,
+      plan: START_PLAN,
+    },
   ];
 }
 
@@ -56,8 +97,6 @@ export class DuelMapGenerator implements MapGenerator {
   readonly #options: Required<DuelMapOptions>;
 
   constructor(options: DuelMapOptions = {}) {
-    // На четверых точек вчетверо больше, поэтому зазор меньше: иначе пять
-    // четвёрок нейтралов физически не помещаются и карта выходит бедной.
     const base =
       options.playerCount === 4
         ? { ...DEFAULTS, minDistance: 95, startClearance: 150 }
@@ -74,7 +113,17 @@ export class DuelMapGenerator implements MapGenerator {
   #basePlanets(): MapPlanet[] {
     const { width, height, playerCount } = this.#options;
     const starts = startsFor(playerCount, width, height);
-    return [...starts, { id: starts.length, size: 'XL', x: width / 2, y: height / 2, ownerId: -1, garrisonHamsters: 12 }];
+    return [
+      ...starts,
+      {
+        id: starts.length,
+        size: 'XL',
+        x: width / 2,
+        y: height / 2,
+        ownerId: -1,
+        garrison: neutralGarrison('XL'),
+      },
+    ];
   }
 
   #generateDuel(seed: number): MapDefinition {
@@ -89,10 +138,9 @@ export class DuelMapGenerator implements MapGenerator {
       const y = rng.nextInt(80, height - 80);
       if (!this.#canPlace(planets, x, y, minDistance, startClearance)) continue;
 
-      const size = NEUTRAL_SIZES[rng.nextInt(0, NEUTRAL_SIZES.length)] ?? 'S';
-      const garrison = rng.nextIntInclusive(6, 9);
-      this.#addNeutral(planets, size, x, y, garrison);
-      this.#addNeutral(planets, size, width - x, y, garrison);
+      const size = this.#sizeFor(x, y);
+      this.#addNeutral(planets, size, x, y);
+      this.#addNeutral(planets, size, width - x, y);
     }
 
     return { name: `duel-${seed}`, width, height, playerCount: 2, planets };
@@ -110,15 +158,14 @@ export class DuelMapGenerator implements MapGenerator {
       const y = rng.nextInt(130, Math.floor(height / 2) - 30);
       if (!this.#canPlace(planets, x, y, minDistance, startClearance)) continue;
 
-      const size = NEUTRAL_SIZES[rng.nextInt(0, NEUTRAL_SIZES.length)] ?? 'S';
-      const garrison = rng.nextIntInclusive(6, 9);
+      const size = this.#sizeFor(x, y);
       for (const corner of [
         { x, y },
         { x: width - x, y },
         { x, y: height - y },
         { x: width - x, y: height - y },
       ]) {
-        this.#addNeutral(planets, size, corner.x, corner.y, garrison);
+        this.#addNeutral(planets, size, corner.x, corner.y);
       }
     }
 
@@ -131,8 +178,7 @@ export class DuelMapGenerator implements MapGenerator {
     y: number,
     minDistance: number,
     startClearance: number,
-  ): boolean {
-    for (const planet of planets) {
+  ): boolean {    for (const planet of planets) {
       const distance = Math.hypot(planet.x - x, planet.y - y);
       if (distance < minDistance) return false;
       if (planet.ownerId !== -1 && distance < startClearance) return false;
@@ -140,14 +186,24 @@ export class DuelMapGenerator implements MapGenerator {
     return true;
   }
 
-  #addNeutral(
-    planets: MapPlanet[],
-    size: PlanetSize,
-    x: number,
-    y: number,
-    garrison: number,
-  ): void {
-    planets.push({ id: planets.length, size, x, y, ownerId: -1, garrisonHamsters: garrison });
+  /** Ближе к старту — мелкие и дешёвые, ближе к центру — крупные и ценные. */
+  #sizeFor(x: number, y: number): PlanetSize {
+    const dx = x - this.#options.width / 2;
+    const dy = y - this.#options.height / 2;
+    const fromCenter = Math.hypot(dx, dy);
+    if (fromCenter > 260) return 'S';
+    if (fromCenter > 150) return 'M';
+    return 'L';
+  }
+
+  #addNeutral(planets: MapPlanet[], size: PlanetSize, x: number, y: number): void {    planets.push({
+      id: planets.length,
+      size,
+      x,
+      y,
+      ownerId: -1,
+      garrison: neutralGarrison(size),
+    });
   }
 }
 

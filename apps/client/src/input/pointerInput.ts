@@ -67,7 +67,7 @@ export class PointerInput {
       return;
     }
     this.#dragging = true;
-    presenter.pointerDown(planetId, event.shiftKey);
+    presenter.pointerDown(planetId);
     const point = this.#picker.toWorld(event.offsetX, event.offsetY);
     presenter.pointerMove(point.x, point.y, planetId);
   };

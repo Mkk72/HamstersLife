@@ -49,7 +49,7 @@ export class ArrowLayer {
       const ux = dx / length;
       const uy = dy / length;
       const color = colorForOwner(route.ownerId);
-      const alpha = 0.45 + (route.weightPermille / 1000) * 0.3;
+      const alpha = route.supplyEnabled ? 0.8 : 0.3;
 
       for (let travelled = 20; travelled < length - 20; travelled += CHEVRON_SPACING) {
         const x = route.fromX + ux * travelled;
@@ -84,7 +84,6 @@ export class ArrowLayer {
       g.moveTo(arrow.fromX, arrow.fromY)
         .lineTo(arrow.toX, arrow.toY)
         .stroke({ width: arrow.valid ? 3 : 2, color, alpha: 0.85 });
-
       const angle = Math.atan2(arrow.toY - arrow.fromY, arrow.toX - arrow.fromX);
       const leftX = arrow.toX - Math.cos(angle - 0.42) * HEAD_LENGTH;
       const leftY = arrow.toY - Math.sin(angle - 0.42) * HEAD_LENGTH;

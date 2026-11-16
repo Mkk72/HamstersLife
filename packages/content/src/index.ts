@@ -1,5 +1,5 @@
 /**
- * Точка входа контента: провалидированные баланс и карты.
+ * Точка входа контента: провалидированные баланс, рода, шаблоны и карты.
  *
  * Валидация выполняется один раз при импорте. Клиент и сервер получают один и
  * тот же объект, поэтому числа не могут разъехаться между ними.
@@ -7,14 +7,14 @@
 import type { Balance, ContentProvider, MapDefinition } from '@hamsters/core';
 import arenaDuelJson from './data/arena-duel.json';
 import balanceJson from './data/balance.json';
-import clansJson from './data/clans.json';
+import templatesJson from './data/templates.json';
 import troopsJson from './data/troops.json';
 import { balanceSchema, mapDefinitionSchema } from './schema';
 
 export const BALANCE: Balance = balanceSchema.parse({
   ...balanceJson,
   troops: troopsJson,
-  clans: clansJson,
+  templates: templatesJson,
 });
 
 const arenaDuel: MapDefinition = mapDefinitionSchema.parse(arenaDuelJson);

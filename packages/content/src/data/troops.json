@@ -1,89 +1,79 @@
 {
   "swordsman": {
     "name": "Мечник",
+    "shortName": "Меч",
     "role": "melee",
-    "attack": 950,
-    "defense": 1300,
-    "speedPermille": 1000,
-    "range": 0,
-    "trainTicks": 60,
-    "costSeeds": 20000,
-    "strongAgainst": [
-      "archer"
-    ],
-    "weakAgainst": [
+    "hp": 36,
+    "damage": 5,
+    "attackIntervalTicks": 4,
+    "firstAttackTicks": 24,
+    "work": 1000,
+    "priority": [
+      "cavalry",
+      "swordsman",
+      "archer",
       "cannon"
     ],
-    "shortName": "Меч"
+    "counters": {
+      "cavalry": 2000
+    }
   },
   "archer": {
     "name": "Лучник",
+    "shortName": "Лук",
     "role": "ranged",
-    "attack": 1000,
-    "defense": 650,
-    "speedPermille": 1000,
-    "range": 1,
-    "trainTicks": 70,
-    "costSeeds": 22000,
-    "strongAgainst": [
-      "cavalry"
-    ],
-    "weakAgainst": [
+    "hp": 18,
+    "damage": 5,
+    "attackIntervalTicks": 4,
+    "firstAttackTicks": 4,
+    "work": 1500,
+    "priority": [
+      "swordsman",
+      "archer",
+      "cavalry",
       "cannon"
     ],
-    "shortName": "Лук"
-  },
-  "cannon": {
-    "name": "Пушка",
-    "role": "siege",
-    "attack": 2000,
-    "defense": 800,
-    "speedPermille": 600,
-    "range": 2,
-    "trainTicks": 110,
-    "costSeeds": 28000,
-    "strongAgainst": [
-      "swordsman"
-    ],
-    "weakAgainst": [
-      "cavalry"
-    ],
-    "shortName": "Пуш"
+    "counters": {
+      "swordsman": 1500
+    }
   },
   "cavalry": {
     "name": "Конница",
+    "shortName": "Кон",
     "role": "melee",
-    "attack": 1400,
-    "defense": 850,
-    "speedPermille": 1600,
-    "range": 0,
-    "trainTicks": 80,
-    "costSeeds": 26000,
-    "strongAgainst": [
+    "hp": 48,
+    "damage": 10,
+    "attackIntervalTicks": 4,
+    "firstAttackTicks": 8,
+    "work": 3000,
+    "priority": [
       "cannon",
-      "archer"
-    ],
-    "weakAgainst": [
+      "archer",
+      "cavalry",
       "swordsman"
     ],
-    "shortName": "Кон"
+    "counters": {
+      "archer": 2000,
+      "cannon": 2000
+    }
   },
-  "mage": {
-    "name": "Маг-звездочёт",
-    "role": "support",
-    "attack": 1500,
-    "defense": 650,
-    "speedPermille": 1000,
-    "range": 2,
-    "trainTicks": 120,
-    "costSeeds": 30000,
-    "strongAgainst": [
+  "cannon": {
+    "name": "Пушка",
+    "shortName": "Пуш",
+    "role": "ranged",
+    "hp": 90,
+    "damage": 45,
+    "attackIntervalTicks": 16,
+    "firstAttackTicks": 16,
+    "work": 4000,
+    "priority": [
       "swordsman",
-      "archer"
-    ],
-    "weakAgainst": [
+      "cannon",
+      "archer",
       "cavalry"
     ],
-    "shortName": "Маг"
+    "counters": {
+      "swordsman": 2000
+    }
   }
 }

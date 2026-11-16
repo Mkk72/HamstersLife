@@ -1,344 +1,146 @@
 /**
- * Системы тика. Каждая — маленькая функция «состояние + контекст → изменение
- * состояния». Состав и порядок задаёт `TICK_SYSTEMS`: добавить правило — значит
- * написать систему, вставить её в список и покрыть тестом. Порядок входит в
- * контракт детерминизма, поэтому меняется только с повышением `rulesVersion`.
+ * Системы тика. Порядок входит в контракт детерминизма:
+ * производство → восстановление → снабжение → бои → полёты и прибытия → выбывание.
  */
-import { resolveFieldBattle } from './battle';
-import { resolveBattle } from './combat';
-import { clearBoosts } from './boosts';
-import { launchFleet } from './fleets';
-import { resolveInterceptions } from './interceptions';
-import { defensePermille, productionPerTick, seedsPerTick } from './modifiers';
-import { garrisonOf, hasForces } from './state';
-import { createTroopStack, mergeTroops, resizeTroops, subtractTroops, troopTotal } from './troops';
-import type { Balance, Fleet, GameState, PlanetId, PlayerId, Route, TroopStack } from './types';
+import type { Balance, Fleet, GameState, PlanetId, PlayerId } from './types';
 import { NEUTRAL_OWNER } from './types';
-import { PERMILLE, mulPermille, HAMSTER } from './units';
+import { productionSystem, type TickContext } from './production';
+import { supplySystem } from './supply';
+import { battleSystem, joinBattle, startFieldBattle, startPlanetBattle } from './battle';
+import { mergeArmies } from './army';
+import { healUnit } from './army';
+import { hasForces } from './state';
 
-export interface TickContext {
-  readonly tick: number;
-  readonly balance: Balance;
-}
-
+export type { TickContext } from './production';
 export type TickSystem = (state: GameState, context: TickContext) => void;
 
-/** Базовые бойцы, которые даёт производство планеты. */
-function baseTroops(amount: number): TroopStack {
-  return createTroopStack({ swordsman: amount });
-}
-
-function addBaseTroops(planet: { troops: TroopStack }, amount: number): void {
-  if (amount <= 0) return;
-  planet.troops.swordsman += amount;
-}
-
-/**
- * 0. Обучение в казармах: первый заказ очереди тренирует одного хомяка за
- * `trainTicks` тиков. Если гарнизон заполнил предел, обучение ждёт: сначала
- * освободите место (излишек сам уходит по маршрутам).
- */
-export const trainingSystem: TickSystem = (state, context) => {
+/** Восстановление: 10 секунд без боя — и юнит снова целый. */
+export const healSystem: TickSystem = (state, context) => {
   for (const planet of state.planets) {
-    const order = planet.training[0];
-    if (!order) continue;
-    const capacity = context.balance.planetSizes[planet.size].capacity;
-    if (garrisonOf(planet) >= capacity) continue;
-
-    const stats = context.balance.troops[order.kind];
-    if (!stats) {
-      planet.training.shift();
-      continue;
+    if (planet.battleId !== null) continue;
+    for (const unit of planet.army) {
+      if (unit.hp < context.balance.troops[unit.kind].hp && unit.healAtTick > 0 && state.tick >= unit.healAtTick) {
+        healUnit(unit, context.balance.troops);
+      }
     }
-
-    order.progressTicks += 1;
-    if (order.progressTicks < stats.trainTicks) continue;
-
-    order.progressTicks = 0;
-    const batch = Math.min(HAMSTER, order.remaining);
-    planet.troops[order.kind] += batch;
-    order.remaining -= batch;
-    if (order.remaining <= 0) planet.training.shift();
+  }
+  for (const fleet of state.fleets) {
+    for (const unit of fleet.army) {
+      if (unit.hp < context.balance.troops[unit.kind].hp && unit.healAtTick > 0 && state.tick >= unit.healAtTick) {
+        healUnit(unit, context.balance.troops);
+      }
+    }
   }
 };
 
-/**
- * 1. Рост планет и постоянные маршруты.
- *
- * Производство даёт базовых бойцов. Если у планеты есть живые маршруты:
- *  - ниже вместимости экспортируется доля `min(100%, Σвесов)` производства;
- *  - ровно на вместимости — всё производство;
- *  - выше вместимости — излишек сбрасывается по стрелкам сверх генерации.
- * Состав при этом сохраняется: поток производства — базовые бойцы, излишек
- * уходит пропорционально текущему составу гарнизона.
- */
-export const productionSystem: TickSystem = (state, context) => {
-  for (const planet of state.planets) {
-    if (planet.ownerId === NEUTRAL_OWNER) continue;
-    const capacity = context.balance.planetSizes[planet.size].capacity;
-    const owner = state.players[planet.ownerId];
-    const clanProduction = owner
-      ? (context.balance.clans[owner.clanId]?.productionPermille ?? 1000)
-      : 1000;
-    const produced = mulPermille(
-      productionPerTick(planet, context.tick, context.balance),
-      clanProduction,
-    );
-    const routes = state.routes.filter(
-      (route) => route.fromPlanetId === planet.id && route.ownerId === planet.ownerId,
-    );
-    const total = garrisonOf(planet);
-
-    if (routes.length === 0) {
-      addBaseTroops(planet, Math.min(produced, Math.max(0, capacity - total)));
-      continue;
-    }
-
-    const sumWeights = routes.reduce((sum, route) => sum + route.weightPermille, 0);
-    const exported = buildExport(planet, total, capacity, produced, sumWeights);
-    if (exported.amount <= 0) continue;
-    distributeStack(routes, exported.troops, exported.amount, sumWeights);
-  }
-
-  flushRoutes(state, context);
-};
-
-interface ExportResult {
-  readonly amount: number;
-  readonly troops: TroopStack;
+function progressAt(fleet: Fleet, tick: number): number {
+  const span = Math.max(1, fleet.arriveTick - fleet.departTick);
+  const elapsed = Math.min(span, Math.max(0, tick - fleet.departTick));
+  const start = fleet.startProgressPermille;
+  return Math.min(1000, start + Math.floor(((1000 - start) * elapsed) / span));
 }
 
-function buildExport(
-  planet: { troops: TroopStack },
-  total: number,
-  capacity: number,
-  produced: number,
-  sumWeights: number,
-): ExportResult {
-  if (total > capacity) {
-    const overflow = total - capacity;
-    const overflowTroops = resizeTroops(planet.troops, overflow);
-    planet.troops = resizeTroops(planet.troops, capacity);
-    return {
-      amount: overflow + produced,
-      troops: mergeTroops(overflowTroops, baseTroops(produced)),
-    };
-  }
-
-  if (total === capacity) {
-    return { amount: produced, troops: baseTroops(produced) };
-  }
-
-  const exported = mulPermille(produced, Math.min(PERMILLE, sumWeights));
-  const free = capacity - total;
-  let retain = produced - exported;
-  let extra = 0;
-  if (retain > free) {
-    extra = retain - free;
-    retain = free;
-  }
-  addBaseTroops(planet, retain);
-  return { amount: exported + extra, troops: baseTroops(exported + extra) };
+/** Разность позиций двух встречных флотов на общей стрелке A→B. */
+function gap(first: Fleet, second: Fleet, tick: number): number {
+  const firstProgress = progressAt(first, tick);
+  const secondProgress = progressAt(second, tick);
+  return firstProgress - (1000 - secondProgress);
 }
 
-/** Раздать состав по маршрутам без потери milli-единиц (крупнейшие остатки). */
-function distributeStack(
-  routes: readonly Route[],
-  stack: TroopStack,
-  amount: number,
-  sumWeights: number,
+function isOpposite(first: Fleet, second: Fleet): boolean {
+  return (
+    first.ownerId !== second.ownerId &&
+    first.fromPlanetId === second.toPlanetId &&
+    first.toPlanetId === second.fromPlanetId
+  );
+}
+
+function resolveArrivals(
+  state: GameState,
+  arrivals: readonly Fleet[],
+  balance: Balance,
 ): void {
-  if (amount <= 0 || sumWeights <= 0) return;
+  const sorted = [...arrivals].sort((a, b) => a.id - b.id);
+  for (const fleet of sorted) {
+    const planet = state.planets[fleet.toPlanetId];
+    if (!planet) continue;
 
-  const shares = routes.map((route) => {
-    const exact = amount * route.weightPermille;
-    return {
-      route,
-      index: route.id,
-      share: Math.floor(exact / sumWeights),
-      remainder: exact % sumWeights,
-    };
-  });
-
-  const assigned = shares.reduce((sum, part) => sum + part.share, 0);
-  let left = amount - assigned;
-  shares.sort((a, b) => b.remainder - a.remainder || a.index - b.index);
-  let cursor = 0;
-  while (left > 0 && shares.length > 0) {
-    const part = shares[cursor % shares.length];
-    if (!part) break;
-    part.share += 1;
-    left -= 1;
-    cursor += 1;
-  }
-
-  let remaining = stack;
-  for (const part of shares) {
-    if (part.share <= 0) continue;
-    const piece = resizeTroops(remaining, Math.min(troopTotal(remaining), part.share));
-    remaining = subtractTroops(remaining, piece);
-    part.route.pending = mergeTroops(part.route.pending, piece);
-  }
-}
-
-/** Маршруты, накопившие минимальный отряд, выпускают его. */
-function flushRoutes(state: GameState, context: TickContext): void {
-  const threshold = context.balance.minRouteFleet;
-  for (const route of state.routes) {
-    if (troopTotal(route.pending) < threshold) continue;
-    const from = state.planets[route.fromPlanetId];
-    if (!from || from.ownerId !== route.ownerId) {
-      route.pending = createTroopStack();
+    if (planet.battleId !== null) {
+      const battle = state.battles.find((item) => item.id === planet.battleId);
+      if (battle) joinBattle(state, battle, fleet, balance);
       continue;
     }
-    const troops = route.pending;
-    route.pending = createTroopStack();
-    launchFleet(state, context.balance, route.ownerId, from, route.toPlanetId, troops);
+
+    if (planet.ownerId === fleet.ownerId) {
+      mergeArmies(planet.army, fleet.army);
+      continue;
+    }
+
+    startPlanetBattle(state, planet, fleet, balance);
   }
 }
 
-/** 2. Семечки капают с каждой своей планеты живому игроку. */
-export const seedsSystem: TickSystem = (state, context) => {
-  const perPlanet = seedsPerTick(context.balance);
-  if (perPlanet === 0) return;
-  for (const planet of state.planets) {
-    if (planet.ownerId === NEUTRAL_OWNER) continue;
-    const player = state.players[planet.ownerId];
-    if (!player || !player.alive) continue;
-    player.seeds += perPlanet;
-  }
-};
-
-/** 3. Флоты летят, встречаются на одной стрелке и прибывают. */
+/** Флоты: движение, честный перехват на одной стрелке и прибытия. */
 export const fleetsSystem: TickSystem = (state, context) => {
-  const arrivals = advanceFleets(state, context.tick);
-  // Перехват считаем между движением и прибытием: столкнувшиеся исчезают,
-  // не долетая ни до одной планеты.
-  resolveInterceptions(state, context.tick);
-  resolveArrivals(state, arrivals, context);
+  const arrivals: Fleet[] = [];
+  for (const fleet of state.fleets) {
+    if (fleet.arriveTick <= state.tick) arrivals.push(fleet);
+  }
+  if (arrivals.length > 0) {
+    const arriving = new Set(arrivals.map((fleet) => fleet.id));
+    const remaining = state.fleets.filter((fleet) => !arriving.has(fleet.id));
+    state.fleets.splice(0, state.fleets.length, ...remaining);
+  }
+
+  const flying = [...state.fleets].sort((a, b) => a.id - b.id);
+  const removed = new Set<number>();
+  for (let left = 0; left < flying.length; left += 1) {
+    const first = flying[left];
+    if (!first || removed.has(first.id)) continue;
+    for (let right = left + 1; right < flying.length; right += 1) {
+      const second = flying[right];
+      if (!second || removed.has(second.id)) continue;
+      if (!isOpposite(first, second)) continue;
+      const before = gap(first, second, state.tick - 1);
+      const after = gap(first, second, state.tick);
+      if (!(before <= 0 && after >= 0)) continue;
+      const progress = Math.min(1000, Math.max(0, progressAt(first, state.tick)));
+      removed.add(first.id);
+      removed.add(second.id);
+      startFieldBattle(state, first, second, progress, context.balance);
+      break;
+    }
+  }
+  if (removed.size > 0) {
+    const remaining = state.fleets.filter((fleet) => !removed.has(fleet.id));
+    state.fleets.splice(0, state.fleets.length, ...remaining);
+  }
+
+  resolveArrivals(state, arrivals, context.balance);
 };
 
-/** 4. Игрок без планет и флотов выбывает. */
 export const eliminationSystem: TickSystem = (state) => {
   for (const player of state.players) {
     if (player.alive && !hasForces(state, player.id)) player.alive = false;
   }
 };
 
-/** Канонический порядок: он же записан в IDEA.md §3.4.1 и ARCHITECTURE.md §10. */
 export const TICK_SYSTEMS: readonly TickSystem[] = [
-  trainingSystem,
   productionSystem,
-  seedsSystem,
+  healSystem,
+  supplySystem,
+  battleSystem,
   fleetsSystem,
   eliminationSystem,
 ];
 
-function advanceFleets(state: GameState, tick: number): Map<PlanetId, Fleet[]> {
-  const stillFlying: Fleet[] = [];
-  const arrivals = new Map<PlanetId, Fleet[]>();
-
-  for (const fleet of state.fleets) {
-    if (fleet.arriveTick > tick) {
-      stillFlying.push(fleet);
-      continue;
-    }
-    const group = arrivals.get(fleet.toPlanetId);
-    if (group) group.push(fleet);
-    else arrivals.set(fleet.toPlanetId, [fleet]);
-  }
-
-  state.fleets.length = 0;
-  state.fleets.push(...stillFlying);
-  return arrivals;
+/** Совместимость с тестами/старым API: планета нейтрала не производит. */
+export function isNeutral(ownerId: PlayerId): boolean {
+  return ownerId === NEUTRAL_OWNER;
 }
 
-interface Incumbent {
-  readonly ownerId: PlayerId;
-  troops: TroopStack;
+export function planetIds(planets: readonly { id: PlanetId }[]): PlanetId[] {
+  return planets.map((planet) => planet.id);
 }
 
-function resolveArrivals(
-  state: GameState,
-  arrivals: Map<PlanetId, Fleet[]>,
-  context: TickContext,
-): void {
-  const targetIds = [...arrivals.keys()].sort((a, b) => a - b);
-
-  for (const planetId of targetIds) {
-    const planet = state.planets[planetId];
-    if (!planet) continue;
-
-    const fleets = [...(arrivals.get(planetId) ?? [])].sort((a, b) => a.id - b.id);
-    let incumbent: Incumbent | null = null;
-
-    for (const fleet of fleets) {
-      if (incumbent === null) {
-        incumbent = { ownerId: fleet.ownerId, troops: fleet.troops };
-        continue;
-      }
-      if (incumbent.ownerId === fleet.ownerId) {
-        incumbent.troops = mergeTroops(incumbent.troops, fleet.troops);
-        continue;
-      }
-      const battle = resolveBattle(troopTotal(incumbent.troops), troopTotal(fleet.troops));
-      if (battle.winner === 'none') {
-        incumbent = null;
-      } else if (battle.winner === 'attacker') {
-        incumbent = {
-          ownerId: incumbent.ownerId,
-          troops: resizeTroops(incumbent.troops, battle.remaining),
-        };
-      } else {
-        incumbent = {
-          ownerId: fleet.ownerId,
-          troops: resizeTroops(fleet.troops, battle.remaining),
-        };
-      }
-    }
-
-    if (!incumbent || troopTotal(incumbent.troops) <= 0) continue;
-
-    if (planet.ownerId === incumbent.ownerId) {
-      // Подкрепление: состав складывается, излишек сверх вместимости сохраняется.
-      planet.troops = mergeTroops(planet.troops, incumbent.troops);
-      continue;
-    }
-
-    const defender = state.players[planet.ownerId];
-    const clanDefense = defender
-      ? (context.balance.clans[defender.clanId]?.defensePermille ?? 1000)
-      : 1000;
-    const battle = resolveFieldBattle(
-      incumbent.troops,
-      planet.troops,
-      defensePermille(planet, context.tick, context.balance, clanDefense),
-      context.balance,
-    );
-
-    if (battle.captured) {
-      planet.ownerId = incumbent.ownerId;
-      const survivors = Math.max(
-        context.balance.minCaptureGarrison,
-        troopTotal(battle.attacker),
-      );
-      planet.troops = resizeTroops(battle.attacker, survivors);
-      planet.training.length = 0; // заказы прежнего владельца сгорают
-      clearBoosts(planet);
-      // Маршруты прежнего владельца сгорают вместе с планетой.
-      removeRoutesForPlanet(state, planet.id);
-    } else {
-      planet.troops = battle.defender;
-    }
-  }
-}
-
-function removeRoutesForPlanet(state: GameState, planetId: PlanetId): void {
-  for (let index = state.routes.length - 1; index >= 0; index -= 1) {
-    const route = state.routes[index];
-    if (!route) continue;
-    if (route.fromPlanetId === planetId || route.toPlanetId === planetId) {
-      state.routes.splice(index, 1);
-    }
-  }
-}
+export type { Balance };

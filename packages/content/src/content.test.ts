@@ -1,64 +1,60 @@
 import { describe, expect, it } from 'vitest';
+import { createGameState } from '@hamsters/core';
 import { BALANCE, DEFAULT_MAP, MAPS, getMap } from './index';
 import { balanceSchema, mapDefinitionSchema } from './schema';
-import { createGameState } from '@hamsters/core';
 
 describe('баланс', () => {
   it('загружается и проходит схему', () => {
     expect(BALANCE.rulesVersion).toBeGreaterThan(0);
-    expect(BALANCE.planetSizes.M.capacity).toBeGreaterThan(0);
+    expect(BALANCE.planetSizes.M.capacity).toBe(60);
   });
 
-  it('производство делится на 20 без остатка — иначе теряется точность за тик', () => {
-    for (const [size, stats] of Object.entries(BALANCE.planetSizes)) {
-      expect(stats.productionPerSecond % 20, `размер ${size}`).toBe(0);
+  it('вместимость и мощность растут с размером', () => {
+    const sizes = ['S', 'M', 'L', 'XL'] as const;
+    for (let index = 1; index < sizes.length; index += 1) {
+      expect(BALANCE.planetSizes[sizes[index]!].capacity).toBeGreaterThan(
+        BALANCE.planetSizes[sizes[index - 1]!].capacity,
+      );
+      expect(BALANCE.planetSizes[sizes[index]!].powerPerTick).toBeGreaterThan(
+        BALANCE.planetSizes[sizes[index - 1]!].powerPerTick,
+      );
     }
   });
 
-  it('вместимость больше стартового гарнизона средней планеты', () => {
-    expect(BALANCE.planetSizes.M.capacity).toBeGreaterThan(10_000);
-  });
-
-  it('бусты имеют смысл: множитель выше 1, перезарядка длиннее действия', () => {
-    for (const stats of Object.values(BALANCE.boosts)) {
-      expect(stats.factorPermille).toBeGreaterThan(1000);
-      expect(stats.cooldownTicks).toBeGreaterThan(stats.durationTicks);
-    }
-  });
-
-  it('пять родов войск с осмысленными ролями', () => {
+  it('четыре рода войск: мечники, лучники, конница, пушки', () => {
     expect(Object.keys(BALANCE.troops).sort()).toEqual([
       'archer',
       'cannon',
       'cavalry',
-      'mage',
       'swordsman',
     ]);
-    expect(BALANCE.troops.swordsman.defense).toBeGreaterThan(BALANCE.troops.archer.defense);
-    expect(BALANCE.troops.mage.range).toBeGreaterThan(0);
-    expect(BALANCE.troops.cannon.speedPermille).toBeLessThan(
-      BALANCE.troops.swordsman.speedPermille,
+    expect(BALANCE.troops.cannon.damage).toBeGreaterThan(BALANCE.troops.swordsman.damage);
+    expect(BALANCE.troops.cannon.attackIntervalTicks).toBeGreaterThan(
+      BALANCE.troops.swordsman.attackIntervalTicks,
     );
-    expect(BALANCE.troops.cannon.costSeeds).toBeGreaterThan(BALANCE.troops.swordsman.costSeeds);
+    expect(BALANCE.troops.cavalry.hp).toBeGreaterThan(BALANCE.troops.archer.hp);
   });
 
-  it('четыре клана с бонусами не ниже базовых', () => {
-    expect(Object.keys(BALANCE.clans)).toHaveLength(4);
-    for (const clan of Object.values(BALANCE.clans)) {
-      expect(clan.productionPermille).toBeGreaterThanOrEqual(1000);
-      expect(clan.defensePermille).toBeGreaterThanOrEqual(1000);
-      expect(clan.speedPermille).toBeGreaterThanOrEqual(1000);
-      expect(clan.spellCostPermille).toBeGreaterThanOrEqual(900);
-    }
-  });
-
-  it('у каждого рода войск есть сильные и слабые стороны', () => {
+  it('у каждого рода есть приоритеты всех четырёх родов и контр-множители', () => {
     for (const [kind, stats] of Object.entries(BALANCE.troops)) {
-      expect(stats.strongAgainst.length, kind).toBeGreaterThan(0);
-      expect(stats.weakAgainst.length, kind).toBeGreaterThan(0);
+      expect(stats.priority, kind).toHaveLength(4);
+      expect(new Set(stats.priority).size, kind).toBe(4);
+      expect(Object.keys(stats.counters).length, kind).toBeGreaterThan(0);
     }
-    expect(BALANCE.combat.strongPermille).toBeGreaterThan(BALANCE.combat.weakPermille);
-    expect(BALANCE.combat.phaseLossPermille).toBeGreaterThan(0);
+    expect(BALANCE.troops.swordsman.counters.cavalry).toBe(2000);
+    expect(BALANCE.troops.cannon.counters.swordsman).toBe(2000);
+  });
+
+  it('шаблоны дают ровно вместимость и сумму 100%', () => {
+    for (const template of BALANCE.templates) {
+      const sum = Object.values(template.percents).reduce((total, value) => total + value, 0);
+      expect(sum, template.id).toBe(100);
+    }
+  });
+
+  it('стартовые планеты помещаются в предел', () => {
+    const total = Object.values(BALANCE.startingPlan).reduce((sum, value) => sum + value, 0);
+    expect(total).toBe(BALANCE.planetSizes.M.capacity);
   });
 
   it('схема отклоняет лишнее поле у рода войск', () => {
@@ -80,18 +76,10 @@ describe('карта арены', () => {
     expect(() => getMap('нет такой')).toThrow(/Неизвестная карта/);
   });
 
-  it('на карте есть обе стартовые планеты', () => {
+  it('симметрична относительно центра: старты, гарнизоны и планы совпадают', () => {
     const map = MAPS['arena-duel'];
     expect(map).toBeDefined();
     if (!map) return;
-    const owners = new Set(map.planets.map((planet) => planet.ownerId));
-    expect(owners.has(0)).toBe(true);
-    expect(owners.has(1)).toBe(true);
-    expect(owners.has(-1)).toBe(true);
-  });
-
-  it('симметрична относительно центра — честный старт для PvP', () => {
-    const map = getMap(DEFAULT_MAP);
     for (const planet of map.planets) {
       const mirrored = map.planets.find(
         (candidate) => candidate.x === map.width - planet.x && candidate.y === planet.y,
@@ -99,7 +87,8 @@ describe('карта арены', () => {
       expect(mirrored, `нет зеркала для планеты ${planet.id}`).toBeDefined();
       if (!mirrored) continue;
       expect(mirrored.size).toBe(planet.size);
-      expect(mirrored.garrisonHamsters).toBe(planet.garrisonHamsters);
+      expect(mirrored.garrison).toEqual(planet.garrison);
+      expect(mirrored.plan).toEqual(planet.plan);
       if (mirrored.id !== planet.id) {
         if (planet.ownerId === 0) expect(mirrored.ownerId).toBe(1);
         if (planet.ownerId === 1) expect(mirrored.ownerId).toBe(0);
@@ -107,11 +96,24 @@ describe('карта арены', () => {
     }
   });
 
+  it('нейтралы вооружены только мечниками', () => {
+    const map = getMap(DEFAULT_MAP);
+    for (const planet of map.planets.filter((item) => item.ownerId === -1)) {
+      expect(planet.garrison.archer, `планета ${planet.id}`).toBe(0);
+      expect(planet.garrison.cavalry, `планета ${planet.id}`).toBe(0);
+      expect(planet.garrison.cannon, `планета ${planet.id}`).toBe(0);
+    }
+  });
+
   it('принимается ядром как партия', () => {
-    const state = createGameState(getMap(DEFAULT_MAP), BALANCE, 42);
-    expect(state.planets).toHaveLength(getMap(DEFAULT_MAP).planets.length);
+    const map = getMap(DEFAULT_MAP);
+    const state = createGameState(map, BALANCE, 42);
+    expect(state.planets).toHaveLength(map.planets.length);
     expect(state.players).toHaveLength(2);
-    expect(state.players[0]?.seeds).toBe(BALANCE.startingSeeds);
+    const home = state.planets[0];
+    expect(home?.army.filter((unit) => unit.kind === 'swordsman')).toHaveLength(18);
+    expect(home?.army.filter((unit) => unit.kind === 'archer')).toHaveLength(6);
+    expect(home?.plan.swordsman).toBe(36);
   });
 
   it('отклоняет карту с лишним полем — схема строгая', () => {

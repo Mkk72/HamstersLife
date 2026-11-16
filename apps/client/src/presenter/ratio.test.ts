@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE, CONTENT, getMap } from '@hamsters/content';
 import { Simulation } from '@hamsters/core';
-import type { BoostKind, Command, CommandResult, GameState, SimSource } from '@hamsters/core';
+import type { Command, CommandResult, GameState, SimSource } from '@hamsters/core';
 import { GamePresenter } from './gamePresenter';
 import type { BoardView, GameView, QualityLevel } from './viewModel';
 
@@ -23,21 +23,22 @@ class FakeSource implements SimSource {
   stop(): void {
     this.#listener = null;
   }
-  setSpeed(_speed: number): void {}
+  setSpeed(): void {}
 }
 
 class SilentView implements GameView {
   render(_view: BoardView): void {}
   setQuality(_level: QualityLevel): void {}
-  playCapture(_id: number): void {}
-  playInterception(_x: number, _y: number): void {}
-  playBoost(_id: number, _kind: BoostKind): void {}
+  playCapture(): void {}
+  playInterception(): void {}
   playSend(): void {}
   playError(): void {}
   playSelect(): void {}
-  playOutcome(_won: boolean): void {}
+  playOutcome(): void {}
   playCut(): void {}
-  playTrain(): void {}
+  toScreen(x: number, y: number): { x: number; y: number } {
+    return { x, y };
+  }
 }
 
 describe('выбор доли', () => {

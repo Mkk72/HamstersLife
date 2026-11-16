@@ -1,4 +1,4 @@
-import type { BoostKind, Ratio, TroopKind } from '@hamsters/core';
+import type { Ratio, UnitKind } from '@hamsters/core';
 import { BOT_PRESETS } from '@hamsters/ai';
 import type { BotDifficulty } from '@hamsters/ai';
 import { Show, createSignal, onCleanup } from 'solid-js';
@@ -19,9 +19,6 @@ export interface AppProps {
   readonly audioEnabled: () => boolean;
   readonly speed: () => number;
   readonly onRatio: (ratio: Ratio) => void;
-  readonly onBoost: (kind: BoostKind) => void;
-  readonly onTrain: (kind: TroopKind) => void;
-  readonly onComposition: (id: string) => void;
   readonly onQuality: (quality: QualityLevel) => void;
   readonly onMap: (choice: string) => void;
   readonly onDifficulty: (difficulty: BotDifficulty) => void;
@@ -31,58 +28,63 @@ export interface AppProps {
   readonly onAudio: (enabled: boolean) => void;
   readonly onRestart: () => void;
   readonly onDownloadReplay: () => void;
+  readonly onPlanDelta: (kind: UnitKind, delta: number) => void;
+  readonly onPlanSet: (kind: UnitKind, value: number) => void;
+  readonly onResetPlan: () => void;
+  readonly onUndoReset: () => void;
+  readonly onTemplate: (templateId: string) => void;
+  readonly onToggleSupply: (routeId: number) => void;
 }
 
 export function App(props: AppProps) {
   const [fps, setFps] = createSignal(0);
-
   const sample = (): void => {
-    // Pixi сам считает FPS; не дублируем свою статистику.
     setFps(Math.round(props.app.ticker.FPS));
   };
-
   props.app.ticker.add(sample);
   onCleanup(() => props.app.ticker.remove(sample));
 
   return (
-    <>
-      <Show
-        when={props.started()}
-        fallback={
-          <MainMenu
-            mapChoice={props.mapChoice}
-            difficulty={props.difficulty}
-            onMap={props.onMap}
-            onDifficulty={props.onDifficulty}
-            onStart={props.onStart}
-          />
-        }
-      >
-        <GameHud
-          board={props.board}
-          ratio={props.ratio}
-          quality={props.quality}
-          fps={fps}
+    <Show
+      when={props.started()}
+      fallback={
+        <MainMenu
           mapChoice={props.mapChoice}
-          difficulty={() => BOT_PRESETS[props.difficulty()].label}
-          audioEnabled={props.audioEnabled}
-          speed={props.speed}
-          onRatio={props.onRatio}
-          onBoost={props.onBoost}
-          onTrain={props.onTrain}
-          onComposition={props.onComposition}
-          onQuality={props.onQuality}
+          difficulty={props.difficulty}
           onMap={props.onMap}
-          onSpeed={props.onSpeed}
-          onTogglePause={props.onTogglePause}
-          onAudio={props.onAudio}
-          onRestart={props.onRestart}
-          onDownloadReplay={props.onDownloadReplay}
+          onDifficulty={props.onDifficulty}
+          onStart={props.onStart}
         />
-        <Show when={props.board()?.hud.outcome}>
-          {(outcome) => <OutcomeOverlay outcome={outcome()} onRestart={props.onRestart} />}
-        </Show>
+      }
+    >
+      <GameHud
+        board={props.board}
+        ratio={props.ratio}
+        quality={props.quality}
+        fps={fps}
+        mapChoice={props.mapChoice}
+        difficulty={() => BOT_PRESETS[props.difficulty()].label}
+        audioEnabled={props.audioEnabled}
+        speed={props.speed}
+        onRatio={props.onRatio}
+        onQuality={props.onQuality}
+        onMap={props.onMap}
+        onSpeed={props.onSpeed}
+        onTogglePause={props.onTogglePause}
+        onAudio={props.onAudio}
+        onRestart={props.onRestart}
+        onDownloadReplay={props.onDownloadReplay}
+        onPlanDelta={props.onPlanDelta}
+        onPlanSet={props.onPlanSet}
+        onResetPlan={props.onResetPlan}
+        onUndoReset={props.onUndoReset}
+        onTemplate={props.onTemplate}
+        onToggleSupply={props.onToggleSupply}
+      />
+      <Show when={props.board()?.hud.outcome}>
+        {(outcome) => <OutcomeOverlay outcome={outcome()} onRestart={props.onRestart} />}
       </Show>
-    </>
+    </Show>
   );
 }
+

@@ -1,57 +1,43 @@
 {
-  "rulesVersion": 6,
-  "contentVersion": 5,
+  "rulesVersion": 7,
+  "contentVersion": 7,
   "planetSizes": {
-    "S": {
-      "capacity": 6000,
-      "productionPerSecond": 600
-    },
-    "M": {
-      "capacity": 12000,
-      "productionPerSecond": 1000
-    },
-    "L": {
-      "capacity": 24000,
-      "productionPerSecond": 1600
-    },
-    "XL": {
-      "capacity": 40000,
-      "productionPerSecond": 2400
-    }
+    "S": { "capacity": 40, "powerPerTick": 40 },
+    "M": { "capacity": 60, "powerPerTick": 50 },
+    "L": { "capacity": 80, "powerPerTick": 60 },
+    "XL": { "capacity": 100, "powerPerTick": 70 }
   },
   "flightSpeedUnitsPerSecond": 90,
-  "seedsPerPlanetPerSecond": 4000,
-  "startingSeeds": 200000,
-  "boosts": {
-    "production": {
-      "cost": 150000,
-      "durationTicks": 300,
-      "cooldownTicks": 600,
-      "factorPermille": 2000
-    },
-    "speed": {
-      "cost": 120000,
-      "durationTicks": 200,
-      "cooldownTicks": 500,
-      "factorPermille": 1600
-    },
-    "defense": {
-      "cost": 200000,
-      "durationTicks": 240,
-      "cooldownTicks": 600,
-      "factorPermille": 1800
-    }
-  },
-  "minCaptureGarrison": 1000,
   "maxRoutesPerPlanet": 4,
-  "minRouteFleet": 1000,
-  "maxTrainingQueue": 3,
-  "combat": {
-    "strongPermille": 1600,
-    "weakPermille": 600,
-    "phaseLossPermille": 300,
-    "rangedEfficiencyPermille": 1500,
-    "approachEfficiencyPermille": 800,
-    "meleeEfficiencyPermille": 1000
+  "supply": {
+    "reservePermille": 500,
+    "intervalTicks": 40
+  },
+  "defense": {
+    "damagePermille": 850
+  },
+  "capturePercents": {
+    "swordsman": 60,
+    "archer": 40,
+    "cavalry": 0,
+    "cannon": 0
+  },
+  "startingArmy": {
+    "swordsman": 18,
+    "archer": 6,
+    "cavalry": 0,
+    "cannon": 0
+  },
+  "startingPlan": {
+    "swordsman": 36,
+    "archer": 24,
+    "cavalry": 0,
+    "cannon": 0
+  },
+  "neutralGarrison": {
+    "S": 6,
+    "M": 10,
+    "L": 16,
+    "XL": 24
   }
 }
