@@ -188,4 +188,14 @@ describe('отправка и снабжение', () => {
     expect(view.last?.hud.ratio).toBe(75);
     expect(view.last?.arrows).toHaveLength(1);
   });
+
+  it('до отпускания показывает точный состав отряда', () => {
+    const { presenter, view } = setup();
+    presenter.pointerDown(0);
+    presenter.pointerMove(200, 0, 1);
+    const preview = view.last?.hud.sendPreview;
+    expect(preview).not.toBeNull();
+    const total = (preview ?? []).reduce((sum, unit) => sum + unit.count, 0);
+    expect(total).toBeGreaterThan(0);
+  });
 });
