@@ -111,12 +111,43 @@ export interface HudView {
   readonly battleCount: number;
 }
 
+export interface BattleUnitView {
+  readonly kind: UnitKind;
+  readonly short: string;
+  readonly count: number;
+}
+
+export interface BattleSideView {
+  readonly ownerId: PlayerId;
+  readonly units: readonly BattleUnitView[];
+}
+
+export interface BattleBeamView {
+  readonly from: 'attacker' | 'defender';
+  readonly fromKind: UnitKind;
+  readonly toKind: UnitKind;
+  readonly strength: number;
+}
+
+export interface BattleView {
+  readonly id: number;
+  readonly planetId: PlanetId | null;
+  readonly kind: 'planet' | 'field';
+  readonly x: number;
+  readonly y: number;
+  readonly round: number;
+  readonly attacker: BattleSideView;
+  readonly defender: BattleSideView;
+  readonly beams: readonly BattleBeamView[];
+}
+
 export interface BoardView {
   readonly tick: number;
   readonly planets: readonly PlanetView[];
   readonly fleets: readonly FleetView[];
   readonly routes: readonly RouteView[];
   readonly arrows: readonly ArrowView[];
+  readonly battles: readonly BattleView[];
   readonly hud: HudView;
 }
 

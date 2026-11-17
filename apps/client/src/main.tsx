@@ -1,7 +1,7 @@
 import { CONTENT, getMap } from '@hamsters/content';
 import { BOT_PRESETS, DEFAULT_DIFFICULTY, SimpleBot } from '@hamsters/ai';
 import type { BotDifficulty } from '@hamsters/ai';
-import { Simulation, addUnits, planFrom } from '@hamsters/core';
+import { Simulation, addUnits, planFrom, startPlanetBattle } from '@hamsters/core';
 import type { MapDefinition, Ratio, UnitKind } from '@hamsters/core';
 import { generateDuelMap } from '@hamsters/levelgen';
 import { Application } from 'pixi.js';
@@ -93,6 +93,36 @@ function injectStressFleets(sim: Simulation): void {
   }
 }
 
+/** Демо-бой для проверки слоя: ?battle=1. */
+function seedBattle(sim: Simulation): void {
+  const home = sim.state.planets.find((planet) => planet.ownerId === 0);
+  const enemy = sim.state.planets.find((planet) => planet.ownerId === 1);
+  if (!home || !enemy) return;
+  home.plan = planFrom({});
+  enemy.plan = planFrom({});
+  home.army = [];
+  addUnits(home.army, planFrom({ swordsman: 60 }), () => sim.state.nextUnitId++, CONTENT.balance.troops);
+  const attacker: typeof home.army = [];
+  addUnits(attacker, planFrom({ swordsman: 60 }), () => sim.state.nextUnitId++, CONTENT.balance.troops);
+  enemy.army = [];
+  addUnits(enemy.army, planFrom({ swordsman: 60 }), () => sim.state.nextUnitId++, CONTENT.balance.troops);
+  startPlanetBattle(
+    sim.state,
+    enemy,
+    {
+      id: 900_001,
+      ownerId: 0,
+      fromPlanetId: home.id,
+      toPlanetId: enemy.id,
+      army: attacker,
+      departTick: 0,
+      arriveTick: 1,
+      startProgressPermille: 0,
+    },
+    CONTENT.balance,
+  );
+}
+
 function startMatch(choice: string = mapChoice()): void {
   presenter?.stop();
   for (const bot of bots) bot.stop();
@@ -103,6 +133,7 @@ function startMatch(choice: string = mapChoice()): void {
   scene.setMap(map);
 
   const sim = new Simulation(map, CONTENT.balance, seed);
+  if (params.has('battle') && !useWorker) seedBattle(sim);
   if (stressMode && !useWorker) injectStressFleets(sim);
   recorder = new MatchRecorder({
     rulesVersion: CONTENT.balance.rulesVersion,

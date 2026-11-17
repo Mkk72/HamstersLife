@@ -27,6 +27,10 @@ import type {
 } from '@hamsters/core';
 import type {
   ArrowView,
+  BattleBeamView,
+  BattleSideView,
+  BattleUnitView,
+  BattleView,
   BoardView,
   FleetView,
   GameView,
@@ -367,7 +371,63 @@ export class GamePresenter {
       fleets: state.fleets.map((fleet) => this.#fleetView(state, fleet, tick)),
       routes: state.routes.map((route) => this.#routeView(state, route)),
       arrows: this.#arrowViews(state),
+      battles: state.battles.map((battle) => this.#battleView(state, battle)),
       hud: this.#hudView(state, panel),
+    };
+  }
+
+  #battleView(state: GameState, battle: GameState['battles'][number]): BattleView {
+    let x = 0;
+    let y = 0;
+    if (battle.planetId !== null) {
+      const planet = state.planets[battle.planetId];
+      x = planet?.x ?? 0;
+      y = planet?.y ?? 0;
+    } else if (battle.attackerRoute) {
+      const from = state.planets[battle.attackerRoute.fromPlanetId];
+      const to = state.planets[battle.attackerRoute.toPlanetId];
+      if (from && to) {
+        const share = battle.attackerRoute.progressPermille / 1000;
+        x = from.x + (to.x - from.x) * share;
+        y = from.y + (to.y - from.y) * share;
+      }
+    }
+
+    const side = (ownerId: number, army: GameState['battles'][number]['attacker']): BattleSideView => {
+      const counts = countsOf(army);
+      const units: BattleUnitView[] = UNIT_KINDS.filter((kind) => counts[kind] > 0).map((kind) => ({
+        kind,
+        short: this.#balance.troops[kind].shortName,
+        count: counts[kind],
+      }));
+      return { ownerId, units };
+    };
+    const attacker = side(battle.attackerOwnerId, battle.attacker);
+    const defender = side(battle.defenderOwnerId, battle.defender);
+    const defenderCounts = countsOf(battle.defender);
+    const attackerCounts = countsOf(battle.attacker);
+    const beams: BattleBeamView[] = [];
+    for (const kind of UNIT_KINDS) {
+      if (attackerCounts[kind] <= 0) continue;
+      const target = this.#balance.troops[kind].priority.find((enemy) => defenderCounts[enemy] > 0);
+      if (target) beams.push({ from: 'attacker', fromKind: kind, toKind: target, strength: attackerCounts[kind] });
+    }
+    for (const kind of UNIT_KINDS) {
+      if (defenderCounts[kind] <= 0) continue;
+      const target = this.#balance.troops[kind].priority.find((enemy) => attackerCounts[enemy] > 0);
+      if (target) beams.push({ from: 'defender', fromKind: kind, toKind: target, strength: defenderCounts[kind] });
+    }
+
+    return {
+      id: battle.id,
+      planetId: battle.planetId,
+      kind: battle.kind,
+      x,
+      y,
+      round: battle.round,
+      attacker,
+      defender,
+      beams,
     };
   }
 

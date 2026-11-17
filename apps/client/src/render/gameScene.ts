@@ -9,6 +9,7 @@ import { Application, Container } from 'pixi.js';
 import { Sfx } from '../audio/sfx';
 import type { BoardView, GameView, QualityLevel } from '../presenter/viewModel';
 import { ArrowLayer } from './arrowLayer';
+import { BattleLayer } from './battleLayer';
 import { EffectsLayer } from './effectsLayer';
 import { FleetLayer } from './fleetLayer';
 import { distanceToSegment } from './geometry';
@@ -34,6 +35,7 @@ export class GameScene implements GameView {
   readonly #planetLayer = new PlanetLayer();
   readonly #fleetLayer = new FleetLayer();
   readonly #arrowLayer = new ArrowLayer();
+  readonly #battleLayer = new BattleLayer();
   readonly #effectsLayer = new EffectsLayer();
   readonly #starfield: Starfield;
   readonly #sfx = new Sfx();
@@ -60,6 +62,7 @@ export class GameScene implements GameView {
       this.#arrowLayer.view,
       this.#planetLayer.view,
       this.#fleetLayer.view,
+      this.#battleLayer.view,
       this.#effectsLayer.view,
     );
 
@@ -74,6 +77,7 @@ export class GameScene implements GameView {
       const time = app.ticker.lastTime;
       this.#planetLayer.tick(time);
       this.#fleetLayer.tick(app.ticker.deltaMS);
+      this.#battleLayer.tick(time);
       this.#effectsLayer.tick(app.ticker.deltaMS);
       this.#tickPulses(time);
       this.#applyShake(time);
@@ -108,6 +112,7 @@ export class GameScene implements GameView {
     this.#arrowLayer.update(view.routes, view.arrows);
     this.#planetLayer.update(view.planets);
     this.#fleetLayer.update(view.fleets);
+    this.#battleLayer.update(view.battles);
     this.#onBoard?.(view);
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE, CONTENT, getMap } from '@hamsters/content';
-import { Simulation } from '@hamsters/core';
+import { Simulation, addUnits, planFrom } from '@hamsters/core';
 import type { Command, CommandResult, GameState, SimSource } from '@hamsters/core';
 import { GamePresenter } from './gamePresenter';
 import type { BoardView, GameView, QualityLevel } from './viewModel';
@@ -197,5 +197,39 @@ describe('отправка и снабжение', () => {
     expect(preview).not.toBeNull();
     const total = (preview ?? []).reduce((sum, unit) => sum + unit.count, 0);
     expect(total).toBeGreaterThan(0);
+  });
+});
+
+describe('модель боя', () => {
+  it('показывает стороны, иконки и лучи по приоритетам', () => {
+    const { presenter, sim } = setup();
+    const home = sim.state.planets[0];
+    const enemy = sim.state.planets.find((planet) => planet.ownerId === 1);
+    if (!home || !enemy) throw new Error('нет планет');
+    const homeArmy: typeof home.army = [];
+    addUnits(homeArmy, planFrom({ swordsman: 20 }), () => sim.state.nextUnitId++, BALANCE.troops);
+    home.army = homeArmy;
+    home.plan = planFrom({});
+    const enemyArmy: typeof enemy.army = [];
+    addUnits(enemyArmy, planFrom({ archer: 10 }), () => sim.state.nextUnitId++, BALANCE.troops);
+    enemy.army = enemyArmy;
+    enemy.plan = planFrom({});
+
+    sim.applyCommand({
+      type: 'SendFleet',
+      playerId: 0,
+      fromPlanetIds: [home.id],
+      toPlanetId: enemy.id,
+      ratio: 100,
+    });
+    for (let tick = 0; tick < 600 && sim.state.battles.length === 0; tick += 1) {
+      sim.advance(1);
+    }
+
+    const battle = presenter.buildView().battles[0];
+    expect(battle).toBeDefined();
+    expect(battle?.attacker.units.length).toBeGreaterThan(0);
+    expect(battle?.defender.units.length).toBeGreaterThan(0);
+    expect(battle?.beams.length).toBeGreaterThan(0);
   });
 });
