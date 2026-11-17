@@ -90,20 +90,15 @@ export function productionSystem(state: GameState, context: TickContext): void {
   const { balance } = context;
   for (const planet of state.planets) {
     if (planet.ownerId < 0) continue;
+    // Осаждённая планета не производит: иначе гарнизон восполняется быстрее,
+    // чем атакующий успевает его уничтожить, и захват становится невозможным.
+    if (planet.battleId !== null) continue;
     const battle = battleOf(state, planet);
     const army = currentArmy(planet, battle);
     const capacity = capacityOf(planet, balance);
 
     // Прогресс не должен превышать оставшуюся работу после смены плана.
-    if (!battle) clampProgress(planet, balance);
-    else {
-      const counts = countsOf(battle.defender);
-      for (const kind of UNIT_KINDS) {
-        const missing = Math.max(0, planet.plan[kind] - counts[kind]);
-        const maxProgress = missing * balance.troops[kind].work;
-        if (planet.production[kind] > maxProgress) planet.production[kind] = maxProgress;
-      }
-    }
+    clampProgress(planet, balance);
 
     if (army.length >= capacity) {
       // Мест нет: прогресс замирает, но готовый юнит не теряется.

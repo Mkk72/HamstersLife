@@ -152,5 +152,19 @@ describe('бой во времени', () => {
     expect(planet.ownerId).toBe(0);
     expect(planet.army.length).toBeGreaterThan(15);
   });
+
+  it('производство защитника не мешает захвату', () => {
+    const state = setup();
+    const planet = state.planets[0];
+    if (!planet) throw new Error('нет планеты');
+    setArmy(state, planet, { swordsman: 5 });
+    planet.plan = planFrom({ swordsman: 30, archer: 20 });
+    const fleet = attackerFleet(state, 1, planet, { swordsman: 20 });
+    startPlanetBattle(state, planet, fleet, testBalance);
+
+    runTicks(state, testBalance, 200);
+    expect(planet.ownerId).toBe(1);
+    expect(planet.plan).toEqual({ swordsman: 36, archer: 24, cavalry: 0, cannon: 0 });
+  });
 });
 

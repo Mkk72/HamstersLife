@@ -111,7 +111,7 @@ describe('производство по плану', () => {
     }
   });
 
-  it('производство во время боя пополняет защитников, а не планету', () => {
+  it('во время боя производство планеты заморожено', () => {
     const game = state();
     const home = game.planets[0];
     if (!home) throw new Error('нет планеты');
@@ -120,7 +120,7 @@ describe('производство по плану', () => {
     home.production = planFrom({ archer: 1499 });
     const fleetArmy: Planet['army'] = [];
     addUnits(fleetArmy, planFrom({ swordsman: 1 }), () => game.nextUnitId++, testBalance.troops);
-    const battle = startPlanetBattle(
+    startPlanetBattle(
       game,
       home,
       {
@@ -137,8 +137,9 @@ describe('производство по плану', () => {
     );
 
     runTicks(game, testBalance, 2);
-    expect(battle.defender.some((unit) => unit.kind === 'archer')).toBe(true);
-    expect(home.army).toHaveLength(0);
+    const battle = game.battles[0];
+    expect(battle?.defender.some((unit) => unit.kind === 'archer')).toBe(false);
+    expect(home.production.archer).toBe(1499);
   });
 
   it('изменение плана не создаёт и не удаляет армию', () => {
