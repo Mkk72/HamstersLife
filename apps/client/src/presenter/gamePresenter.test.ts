@@ -82,18 +82,23 @@ function setup() {
 }
 
 describe('панель плана', () => {
-  it('появляется только для своей планеты', () => {
+  it('открывается по ПКМ и закрывается повторной ПКМ', () => {
     const { presenter, view } = setup();
     presenter.pointerDown(0);
+    expect(view.last?.hud.panel).toBeNull();
+
+    presenter.togglePlanPanel(0);
     expect(view.last?.hud.panel?.planetId).toBe(0);
-    presenter.clearSelection();
-    presenter.pointerDown(1);
+    presenter.togglePlanPanel(0);
+    expect(view.last?.hud.panel).toBeNull();
+
+    presenter.togglePlanPanel(1);
     expect(view.last?.hud.panel).toBeNull();
   });
 
   it('± меняет задание, Shift — на пять, лимит вместимости соблюдается', () => {
     const { presenter, sim } = setup();
-    presenter.pointerDown(0);
+    presenter.togglePlanPanel(0);
     const planet = sim.state.planets[0];
     if (!planet) throw new Error('нет планеты');
     planet.plan = { swordsman: 10, archer: 10, cavalry: 0, cannon: 0 };
@@ -105,7 +110,7 @@ describe('панель плана', () => {
 
   it('нельзя выйти за вместимость', () => {
     const { presenter, sim, view } = setup();
-    presenter.pointerDown(0);
+    presenter.togglePlanPanel(0);
     const planet = sim.state.planets[0];
     if (!planet) throw new Error('нет планеты');
     const capacity = BALANCE.planetSizes[planet.size].capacity;
@@ -117,7 +122,7 @@ describe('панель плана', () => {
 
   it('шаблон заменяет план целиком', () => {
     const { presenter, sim } = setup();
-    presenter.pointerDown(0);
+    presenter.togglePlanPanel(0);
     presenter.applyTemplate('balanced');
     expect(sim.state.planets[0]?.plan).toEqual({
       swordsman: 27,
@@ -129,7 +134,7 @@ describe('панель плана', () => {
 
   it('сброс сохраняет армию, отмена возвращает план', () => {
     const { presenter, sim } = setup();
-    presenter.pointerDown(0);
+    presenter.togglePlanPanel(0);
     const planet = sim.state.planets[0];
     if (!planet) throw new Error('нет планеты');
     const armyBefore = planet.army.length;
@@ -161,7 +166,7 @@ describe('отправка и снабжение', () => {
     presenter.pointerUp();
     const route = sim.state.routes[0];
     if (!route) throw new Error('нет маршрута');
-    presenter.pointerDown(0);
+    presenter.togglePlanPanel(0);
     presenter.toggleSupply(route.id);
     expect(route.supplyEnabled).toBe(true);
     presenter.toggleSupply(route.id);

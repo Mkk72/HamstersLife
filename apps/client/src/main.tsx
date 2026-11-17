@@ -272,5 +272,8 @@ render(
 if (params.has('play')) {
   startMatch();
   const select = params.get('select');
-  if (select !== null && presenter) (presenter as GamePresenter).pointerDown(Number(select));
+  if (select !== null && presenter) {
+    (presenter as GamePresenter).pointerDown(Number(select));
+    (presenter as GamePresenter).togglePlanPanel(Number(select));
+  }
 }

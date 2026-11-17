@@ -55,6 +55,12 @@ export class PointerInput {
     if (!presenter) return;
 
     if (event.button === 2) {
+      const planetId = this.#picker.hitTest(event.offsetX, event.offsetY);
+      if (planetId !== null) {
+        // ПКМ по планете — таблица плана; повторная ПКМ закрывает её.
+        presenter.togglePlanPanel(planetId);
+        return;
+      }
       this.#cutting = true;
       this.#lastCutRoute = null;
       this.#tryCut(event.offsetX, event.offsetY);

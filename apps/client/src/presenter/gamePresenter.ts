@@ -63,6 +63,8 @@ export class GamePresenter {
   #quality: QualityLevel = 'high';
   #speed = 1;
   #selected: PlanetId | null = null;
+  /** Планета, для которой открыта таблица плана (ПКМ). */
+  #panelPlanetId: PlanetId | null = null;
   #hover: PlanetId | null = null;
   #cursor: { x: number; y: number } | null = null;
   #dragging = false;
@@ -122,7 +124,7 @@ export class GamePresenter {
     return this.#speed;
   }
 
-  /** Выбор планеты: панель плана только для своей. */
+  /** Выбор планеты: только для отправки, таблицу плана не открывает. */
   pointerDown(planetId: PlanetId): void {
     const state = this.#sim.getSnapshot();
     const planet = state.planets[planetId];
@@ -135,6 +137,15 @@ export class GamePresenter {
     } else {
       this.#hover = planetId;
     }
+    this.render();
+  }
+
+  /** ПКМ по своей планете: открыть/закрыть таблицу плана. */
+  togglePlanPanel(planetId: PlanetId): void {
+    const state = this.#sim.getSnapshot();
+    const planet = state.planets[planetId];
+    if (!planet || planet.ownerId !== this.#playerId) return;
+    this.#panelPlanetId = this.#panelPlanetId === planetId ? null : planetId;
     this.render();
   }
 
@@ -188,7 +199,7 @@ export class GamePresenter {
   /** Изменить задание рода: ±1, Shift ±5; сумма не больше вместимости. */
   changePlan(kind: UnitKind, delta: number): void {
     const state = this.#sim.getSnapshot();
-    const planet = this.#selectedPlanet(state);
+    const planet = this.#panelPlanet(state);
     if (!planet) return;
     const capacity = this.#balance.planetSizes[planet.size].capacity;
     const next = { ...planet.plan };
@@ -205,7 +216,7 @@ export class GamePresenter {
   /** Ввести число вручную. */
   setPlanValue(kind: UnitKind, value: number): void {
     const state = this.#sim.getSnapshot();
-    const planet = this.#selectedPlanet(state);
+    const planet = this.#panelPlanet(state);
     if (!planet) return;
     if (!Number.isInteger(value) || value < 0) {
       this.#notify('Нужно целое неотрицательное число', true);
@@ -227,7 +238,7 @@ export class GamePresenter {
   /** Сброс плана: армия сохраняется, производство останавливается. */
   resetPlan(): void {
     const state = this.#sim.getSnapshot();
-    const planet = this.#selectedPlanet(state);
+    const planet = this.#panelPlanet(state);
     if (!planet) return;
     const previous = { ...planet.plan };
     const result = this.#sim.sendCommand({
@@ -262,7 +273,7 @@ export class GamePresenter {
 
   applyTemplate(templateId: string): void {
     const state = this.#sim.getSnapshot();
-    const planet = this.#selectedPlanet(state);
+    const planet = this.#panelPlanet(state);
     if (!planet) return;
     const result = this.#sim.sendCommand({
       type: 'ApplyTemplate',
@@ -307,9 +318,10 @@ export class GamePresenter {
     this.render();
   }
 
-  #selectedPlanet(state: GameState): Planet | null {
-    if (this.#selected === null) return null;
-    const planet = state.planets[this.#selected];
+  /** Планета, для которой открыта таблица плана. */
+  #panelPlanet(state: GameState): Planet | null {
+    if (this.#panelPlanetId === null) return null;
+    const planet = state.planets[this.#panelPlanetId];
     if (!planet || planet.ownerId !== this.#playerId) return null;
     return planet;
   }
@@ -363,7 +375,8 @@ export class GamePresenter {
     const state = this.#sim.getSnapshot();
     const tick = state.tick;
     const selectedPlanet = this.#selected !== null ? state.planets[this.#selected] : undefined;
-    const panel = this.#panelView(state, selectedPlanet);
+    const panelPlanet = this.#panelPlanet(state) ?? undefined;
+    const panel = this.#panelView(state, panelPlanet);
 
     return {
       tick,
@@ -520,8 +533,7 @@ export class GamePresenter {
   }
 
   #panelView(state: GameState, planet: Planet | undefined): PlanPanelView | null {
-    if (!planet || planet.ownerId !== this.#playerId) return null;
-    const counts = countsOf(planet.army);
+    if (!planet || planet.ownerId !== this.#playerId) return null;    const counts = countsOf(planet.army);
     const units: UnitCountView[] = UNIT_KINDS.map((kind) => ({
       kind,
       short: this.#balance.troops[kind].shortName,
@@ -589,10 +601,10 @@ export class GamePresenter {
 
   #hint(state: GameState): string | null {
     if (state.tick < 200 && this.#selected === null) {
-      return 'Клик по своей планете — план гарнизона и отправка';
+      return 'ЛКМ по своей планете — выбор и стрелка; ПКМ — таблица плана';
     }
     if (this.#selected !== null && this.#hover === null) {
-      return 'Тяни стрелку к цели и отпусти — уйдёт разовый отряд';
+      return 'Тяни стрелку к цели и отпусти — уйдёт разовый отряд; ПКМ — план';
     }
     return null;
   }
